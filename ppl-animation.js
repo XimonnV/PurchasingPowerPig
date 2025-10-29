@@ -41,16 +41,12 @@ function adjustForMobile() {
     const body = document.body;
     
     if (isMobilePortrait) {
-        // Enable scrolling
-        body.style.overflow = 'auto';
-        
         // Move panels down by (height - 20px)
         const offset = height - 20;
         document.documentElement.style.setProperty('--panel-offset', offset + 'px');
         body.classList.add('mobile-mode');
     } else {
         // Desktop mode
-        body.style.overflow = 'hidden';
         document.documentElement.style.setProperty('--panel-offset', '0px');
         body.classList.remove('mobile-mode');
     }
