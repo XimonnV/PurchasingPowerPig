@@ -85,24 +85,9 @@ body.mobile-mode .info-display {
     order: 3;
 }
 
-.controls {
-    background: rgba(255, 255, 255, 0.9);
-    padding: 15px;
-    border-radius: 10px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-width: 200px;
-}
-
-.savings-display {
-    background: rgba(255, 255, 255, 0.9);
-    padding: 15px;
-    border-radius: 10px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-width: 200px;
-}
-
+/* Shared panel styling */
+.controls,
+.savings-display,
 .info-display {
     background: rgba(255, 255, 255, 0.9);
     padding: 15px;

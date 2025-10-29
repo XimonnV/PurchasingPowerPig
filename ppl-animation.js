@@ -1,10 +1,3 @@
-// Pig and oval container configuration
-const pigConfig = {
-    width: 300,
-    ovalWidth: 200,
-    ovalHeight: 150
-};
-
 // Animation state
 let fillLevel = 0; // 0 to 100 (percentage)
 let totalSavings = 0; // Total dollar amount saved
@@ -16,6 +9,10 @@ const dropInterval = 1000; // 1 second
 let isPaused = false; // Pause state
 let currentSimDate = new Date(); // Current simulation date (year and month)
 
+// Month names for date display
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+
 // Calculate and update window height based on actual available space
 function updateWindowHeight() {
     const actualHeight = window.innerHeight;
@@ -25,7 +22,6 @@ function updateWindowHeight() {
 // Calculate and apply responsive scale based on viewport height
 function calculateAndApplyScale() {
     const baseHeight = 1080; // Base design height
-    const minHeight = 640; // Minimum supported height
     const viewportHeight = window.innerHeight;
     
     // Calculate scale: clamp between (640/1080 = 0.593) and 1.0
@@ -34,8 +30,6 @@ function calculateAndApplyScale() {
     
     // Apply scale to CSS variable
     document.documentElement.style.setProperty('--scale', scale);
-    
-    return scale;
 }
 
 // Detect mobile portrait mode and adjust panel positions
@@ -150,7 +144,6 @@ class Drop {
             if (!oval) return true;
 
             const ovalRect = oval.getBoundingClientRect();
-            const ovalCenterY = ovalRect.top + ovalRect.height / 2;
             
             // Calculate current fill level position in oval (use actual oval height)
             const fillHeight = (fillLevel / 100) * ovalRect.height;
@@ -265,8 +258,6 @@ function updateSavingsDisplay() {
 function updateDateDisplay() {
     const dateValue = document.getElementById('currentDateValue');
     if (dateValue) {
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
         const year = currentSimDate.getFullYear();
         const month = monthNames[currentSimDate.getMonth()];
         dateValue.textContent = year + ' ' + month;
@@ -277,13 +268,27 @@ function updateDateDisplay() {
 function updateInfoPanel() {
     const infoText = document.querySelector('.info-text');
     if (infoText) {
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
         const now = new Date();
         const year = now.getFullYear();
         const month = monthNames[now.getMonth()];
         infoText.textContent = `A full pig equals the purchasing power of $100K at ${year} ${month}`;
     }
+}
+
+// Calculate drop size based on dollar amount
+function calculateDropSize(amount) {
+    // $1-$100: scales from 1.1px to 11px
+    // $100-$1000: scales from 11px to 20px
+    let size;
+    if (amount <= 100) {
+        size = 1 + amount * 0.1; // Linear scaling for small amounts
+    } else {
+        size = 11 + (amount - 100) * 0.01; // Slower scaling for larger amounts
+    }
+    
+    // Apply viewport scale factor
+    const scaleFactor = getScaleFactor();
+    return size * scaleFactor;
 }
 
 // Initialize fill level and savings based on starting amount
@@ -308,19 +313,8 @@ function createDrop() {
     // No drop if savings is 0
     if (savings === 0) return;
 
-    // Calculate drop size with smaller sizes for low values
-    // $1-$100: scales from 1.1px to 11px
-    // $100-$1000: scales from 11px to 20px
-    let size;
-    if (savings <= 100) {
-        size = 1 + savings * 0.1; // Linear scaling for small amounts
-    } else {
-        size = 11 + (savings - 100) * 0.01; // Slower scaling for larger amounts
-    }
-    
-    // Apply viewport scale factor
-    const scaleFactor = getScaleFactor();
-    size = size * scaleFactor;
+    // Calculate drop size using helper function
+    const size = calculateDropSize(savings);
 
     // Get pig and oval position
     const oval = document.querySelector('.pig-oval-container');
@@ -337,17 +331,8 @@ function createDrop() {
 function createInflationDrop(dollarAmount) {
     if (dollarAmount <= 0) return;
 
-    // Calculate drop size with same formula as savings drops
-    let size;
-    if (dollarAmount <= 100) {
-        size = 1 + dollarAmount * 0.1;
-    } else {
-        size = 11 + (dollarAmount - 100) * 0.01;
-    }
-    
-    // Apply viewport scale factor
-    const scaleFactor = getScaleFactor();
-    size = size * scaleFactor;
+    // Calculate drop size using helper function
+    const size = calculateDropSize(dollarAmount);
 
     // Get pig oval position - drop starts from bottom
     const oval = document.querySelector('.pig-oval-container');
@@ -400,7 +385,8 @@ function animate(timestamp) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Ensure scale is applied (in case resize happened before DOM loaded)
+    // Redundant calls for safety in case DOM loads before the script executes
+    // (these functions were already called at script load time)
     calculateAndApplyScale();
     
     // Ensure mobile adjustments are applied
