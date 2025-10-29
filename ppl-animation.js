@@ -32,6 +32,30 @@ function calculateAndApplyScale() {
     return scale;
 }
 
+// Detect mobile portrait mode and adjust panel positions
+function adjustForMobile() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const isMobilePortrait = (height / width) > 1.5;
+    
+    const body = document.body;
+    
+    if (isMobilePortrait) {
+        // Enable scrolling
+        body.style.overflow = 'auto';
+        
+        // Move panels down by (height - 20px)
+        const offset = height - 20;
+        document.documentElement.style.setProperty('--panel-offset', offset + 'px');
+        body.classList.add('mobile-mode');
+    } else {
+        // Desktop mode
+        body.style.overflow = 'hidden';
+        document.documentElement.style.setProperty('--panel-offset', '0px');
+        body.classList.remove('mobile-mode');
+    }
+}
+
 // Show scaled elements after scale is applied
 function showScaledElements() {
     const elements = document.querySelectorAll('.scaled-element');
@@ -53,10 +77,12 @@ function debounce(func, wait) {
 
 // Apply scale immediately when script loads (before DOM is ready)
 calculateAndApplyScale();
+adjustForMobile();
 
 // Listen for window resize with debouncing
 const debouncedResize = debounce(() => {
     calculateAndApplyScale();
+    adjustForMobile();
 }, 150);
 
 window.addEventListener('resize', debouncedResize);
@@ -375,6 +401,9 @@ function animate(timestamp) {
 document.addEventListener('DOMContentLoaded', () => {
     // Ensure scale is applied (in case resize happened before DOM loaded)
     calculateAndApplyScale();
+    
+    // Ensure mobile adjustments are applied
+    adjustForMobile();
     
     // Show scaled elements now that everything is ready
     showScaledElements();
