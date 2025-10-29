@@ -9,14 +9,57 @@ const dropInterval = 1000; // 1 second
 let isPaused = false; // Pause state
 let currentSimDate = new Date(); // Current simulation date (year and month)
 
+// Track previous window dimensions for smart height updates
+let previousWidth = window.innerWidth;
+let previousHeight = window.innerHeight;
+
 // Month names for date display
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                     'July', 'August', 'September', 'October', 'November', 'December'];
 
 // Calculate and update window height based on actual available space
+// On mobile, prevents height increases from browser chrome hiding (only allows decreases or changes with width change)
 function updateWindowHeight() {
-    const actualHeight = window.innerHeight;
-    document.documentElement.style.setProperty('--window-height', actualHeight + 'px');
+    const currentWidth = window.innerWidth;
+    const currentHeight = window.innerHeight;
+    
+    // Determine if we're in mobile portrait mode
+    const isMobilePortrait = (currentHeight / currentWidth) > 1.5;
+    
+    let shouldUpdate = false;
+    let newHeight = currentHeight;
+    
+    if (!isMobilePortrait) {
+        // Desktop mode: always update freely
+        shouldUpdate = true;
+        newHeight = currentHeight;
+    } else {
+        // Mobile mode: constrained updates
+        const widthChanged = currentWidth !== previousWidth;
+        const heightDecreased = currentHeight < previousHeight;
+        
+        if (widthChanged) {
+            // Width changed (rotation/orientation change) - accept new height
+            shouldUpdate = true;
+            newHeight = currentHeight;
+        } else if (heightDecreased) {
+            // Height decreased (chrome appearing) - accept smaller height
+            shouldUpdate = true;
+            newHeight = currentHeight;
+        } else {
+            // Height increased but width same (chrome hiding) - keep previous smaller height
+            shouldUpdate = true;
+            newHeight = previousHeight; // Keep the smaller height
+        }
+    }
+    
+    if (shouldUpdate) {
+        document.documentElement.style.setProperty('--window-height', newHeight + 'px');
+    }
+    
+    // Update tracking variables
+    previousWidth = currentWidth;
+    previousHeight = currentHeight;
 }
 
 // Calculate and apply responsive scale based on viewport height
