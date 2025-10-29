@@ -1,5 +1,6 @@
 :root {
     --scale: 1; /* Will be set by JavaScript */
+    --window-height: 100vh; /* Will be set by JavaScript based on actual window space */
 }
 
 /* Hide scaled elements until JavaScript applies the scale */
@@ -53,7 +54,7 @@ body.mobile-mode {
 
 /* Mobile mode: position panels below animation, with savings panel at bottom of viewport */
 body.mobile-mode .panel-container {
-    top: calc(100vh - 108px); /* Position top at viewport bottom minus (88px savings + 20px margin) */
+    top: calc(var(--window-height) - 108px); /* Position top at window bottom minus (88px savings + 20px margin) */
     bottom: auto; /* Override bottom positioning */
     /* Keep right: 20px and min-width: 200px from base styles */
 }

@@ -16,6 +16,12 @@ const dropInterval = 1000; // 1 second
 let isPaused = false; // Pause state
 let currentSimDate = new Date(); // Current simulation date (year and month)
 
+// Calculate and update window height based on actual available space
+function updateWindowHeight() {
+    const actualHeight = window.innerHeight;
+    document.documentElement.style.setProperty('--window-height', actualHeight + 'px');
+}
+
 // Calculate and apply responsive scale based on viewport height
 function calculateAndApplyScale() {
     const baseHeight = 1080; // Base design height
@@ -69,11 +75,13 @@ function debounce(func, wait) {
 }
 
 // Apply scale immediately when script loads (before DOM is ready)
+updateWindowHeight();
 calculateAndApplyScale();
 adjustForMobile();
 
 // Listen for window resize with debouncing
 const debouncedResize = debounce(() => {
+    updateWindowHeight();
     calculateAndApplyScale();
     adjustForMobile();
 }, 150);
