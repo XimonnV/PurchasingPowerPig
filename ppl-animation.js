@@ -16,6 +16,51 @@ const dropInterval = 1000; // 1 second
 let isPaused = false; // Pause state
 let currentSimDate = new Date(); // Current simulation date (year and month)
 
+// Calculate and apply responsive scale based on viewport height
+function calculateAndApplyScale() {
+    const baseHeight = 1080; // Base design height
+    const minHeight = 640; // Minimum supported height
+    const viewportHeight = window.innerHeight;
+    
+    // Calculate scale: clamp between (640/1080 = 0.593) and 1.0
+    let scale = viewportHeight / baseHeight;
+    scale = Math.max(0.593, Math.min(1.0, scale));
+    
+    // Apply scale to CSS variable
+    document.documentElement.style.setProperty('--scale', scale);
+    
+    return scale;
+}
+
+// Show scaled elements after scale is applied
+function showScaledElements() {
+    const elements = document.querySelectorAll('.scaled-element');
+    elements.forEach(el => el.classList.add('ready'));
+}
+
+// Debounce function to limit resize event frequency
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Apply scale immediately when script loads (before DOM is ready)
+calculateAndApplyScale();
+
+// Listen for window resize with debouncing
+const debouncedResize = debounce(() => {
+    calculateAndApplyScale();
+}, 150);
+
+window.addEventListener('resize', debouncedResize);
+
 // Get slider values
 function getMonthlySavings() {
     const slider = document.getElementById('savings');
@@ -39,7 +84,7 @@ function getMonthlyInflationRate() {
 
 // Get the current scale factor from CSS
 function getScaleFactor() {
-    const scale = getComputedStyle(document.documentElement).getPropertyValue('--scale');
+    const scale = getComputedStyle(document.documentElement).getPropertyValue('--scale').trim();
     return parseFloat(scale) || 1;
 }
 
@@ -328,6 +373,12 @@ function animate(timestamp) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Ensure scale is applied (in case resize happened before DOM loaded)
+    calculateAndApplyScale();
+    
+    // Show scaled elements now that everything is ready
+    showScaledElements();
+    
     // Initialize fill and savings from starting amount
     initializeFromStartingAmount();
     

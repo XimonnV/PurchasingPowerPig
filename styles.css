@@ -1,8 +1,15 @@
 :root {
-    --base-height: 1080; /* Base screen height in px */
-    --min-scale: 0.593; /* Minimum scale factor (640/1080) */
-    /* Calculate scale based on viewport height, clamped to minimum */
-    --scale: clamp(0.593, calc(100vh / 1080px), 1);
+    --scale: 1; /* Will be set by JavaScript */
+}
+
+/* Hide scaled elements until JavaScript applies the scale */
+.scaled-element {
+    opacity: 0;
+    transition: opacity 0.2s ease-in;
+}
+
+.scaled-element.ready {
+    opacity: 1;
 }
 
 body {
