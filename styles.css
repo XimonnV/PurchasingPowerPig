@@ -1,6 +1,5 @@
 :root {
     --scale: 1; /* Will be set by JavaScript */
-    --panel-offset: 0px; /* Will be set by JavaScript for mobile mode */
 }
 
 /* Hide scaled elements until JavaScript applies the scale */
@@ -42,10 +41,50 @@ body.mobile-mode {
     display: block;
 }
 
-.controls {
+/* Panel container for right-side panels - uses flexbox for automatic spacing */
+.panel-container {
     position: absolute;
-    top: calc(20px + var(--panel-offset));
+    top: 20px;
     right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Automatic 20px spacing between all panels */
+}
+
+/* Mobile mode: position panels below animation, with savings panel at bottom of viewport */
+body.mobile-mode .panel-container {
+    top: calc(100vh - 108px); /* Position top at viewport bottom minus (88px savings + 20px margin) */
+    bottom: auto; /* Override bottom positioning */
+    /* Keep right: 20px and min-width: 200px from base styles */
+}
+
+/* Default order for desktop (right side panels) */
+.controls {
+    order: 1;
+}
+
+.savings-display {
+    order: 2;
+}
+
+.info-display {
+    order: 3;
+}
+
+/* Mobile mode: reorder panels - savings first, then controls, then info */
+body.mobile-mode .controls {
+    order: 2;
+}
+
+body.mobile-mode .savings-display {
+    order: 1;
+}
+
+body.mobile-mode .info-display {
+    order: 3;
+}
+
+.controls {
     background: rgba(255, 255, 255, 0.9);
     padding: 15px;
     border-radius: 10px;
@@ -55,9 +94,6 @@ body.mobile-mode {
 }
 
 .savings-display {
-    position: absolute;
-    top: calc(300px + var(--panel-offset));
-    right: 20px;
     background: rgba(255, 255, 255, 0.9);
     padding: 15px;
     border-radius: 10px;
@@ -67,9 +103,6 @@ body.mobile-mode {
 }
 
 .info-display {
-    position: absolute;
-    top: calc(410px + var(--panel-offset));
-    right: 20px;
     background: rgba(255, 255, 255, 0.9);
     padding: 15px;
     border-radius: 10px;
@@ -120,6 +153,12 @@ label {
     margin-bottom: 5px;
     font-weight: bold;
     color: #333;
+}
+
+/* De-emphasized label for less important text */
+.label-deemphasized {
+    font-weight: normal;
+    margin-bottom: 3px; /* Slightly less space before next label */
 }
 
 input[type="range"] {

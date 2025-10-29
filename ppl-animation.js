@@ -41,13 +41,10 @@ function adjustForMobile() {
     const body = document.body;
     
     if (isMobilePortrait) {
-        // Move panels down by (height - 20px)
-        const offset = height - 20;
-        document.documentElement.style.setProperty('--panel-offset', offset + 'px');
+        // Apply mobile mode class - CSS handles positioning from bottom
         body.classList.add('mobile-mode');
     } else {
         // Desktop mode
-        document.documentElement.style.setProperty('--panel-offset', '0px');
         body.classList.remove('mobile-mode');
     }
 }

@@ -32,38 +32,42 @@
         <div class="pig-oval-fill"></div>
     </div>
     
-    <div class="controls">
-        <div class="control-group">
-            <label>Starting Amount: $<span id="startAmountValue">50000</span></label>
-            <input type="range" id="startAmount" min="0" max="100000" value="50000" step="1000">
+    <!-- Panel container for right-side panels with automatic spacing -->
+    <div class="panel-container">
+        <div class="controls">
+            <div class="control-group">
+                <label>Starting Amount: $<span id="startAmountValue">50000</span></label>
+                <input type="range" id="startAmount" min="0" max="100000" value="50000" step="1000">
+            </div>
+            
+            <div class="control-group">
+                <label class="label-deemphasized"><i>Purchasing Power loss</i></label>
+                <label>Debasement + CPI: <span id="inflationValue">7</span>%</label>
+                <input type="range" id="inflation" min="5" max="20" value="7" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label>Monthly Savings: $<span id="savingsValue">100</span></label>
+                <input type="range" id="savings" min="0" max="1000" value="100" step="10">
+            </div>
+            
+            <div class="control-group">
+                <button id="restartButton">Restart</button>
+                <button id="pauseButton">Pause</button>
+            </div>
         </div>
-        
-        <div class="control-group">
-            <label>Annual Inflation: <span id="inflationValue">7</span>%</label>
-            <input type="range" id="inflation" min="5" max="20" value="7" step="0.1">
-        </div>
-        
-        <div class="control-group">
-            <label>Monthly Savings: $<span id="savingsValue">100</span></label>
-            <input type="range" id="savings" min="0" max="1000" value="100" step="10">
-        </div>
-        
-        <div class="control-group">
-            <button id="restartButton">Restart</button>
-            <button id="pauseButton">Pause</button>
-        </div>
-    </div>
 
-    <!-- Savings display panel -->
-    <div class="savings-display">
-        <div class="savings-label">Savings: <span id="totalSavingsValue">$0</span></div>
-        <div class="savings-label">PP Lost: <span id="totalBankValue">0%</span></div>
-        <div class="savings-label">Date: <span id="currentDateValue">2025 October</span></div>
-    </div>
+        <!-- Savings display panel -->
+        <div class="savings-display">
+            <div class="savings-label">Savings: <span id="totalSavingsValue">$0</span></div>
+            <div class="savings-label">PP Lost: <span id="totalBankValue">0%</span></div>
+            <div class="savings-label">Date: <span id="currentDateValue">2025 October</span></div>
+        </div>
 
-    <!-- Info panel -->
-    <div class="info-display">
-        <div class="info-text">A full pig equals the purchasing power of $100K at 2025 October</div>
+        <!-- Info panel -->
+        <div class="info-display">
+            <div class="info-text">A full pig equals the purchasing power of $100K at 2025 October</div>
+        </div>
     </div>
 
     <!-- Debug display -->
