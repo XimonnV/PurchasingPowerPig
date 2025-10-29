@@ -1,0 +1,254 @@
+:root {
+    --base-height: 1080; /* Base screen height in px */
+    --min-scale: 0.593; /* Minimum scale factor (640/1080) */
+    /* Calculate scale based on viewport height, clamped to minimum */
+    --scale: clamp(0.593, calc(100vh / 1080px), 1);
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+}
+
+/* Banner at top center - easily adjustable positioning */
+.banner-container {
+    position: absolute;
+    left: 50%;
+    top: calc(20px * var(--scale)); /* Adjust this value to move banner up/down */
+    transform: translateX(-50%);
+    z-index: 2000; /* Higher than drops (1000) so drops appear behind banner */
+    width: calc(350px * var(--scale)); /* Adjust width as needed */
+}
+
+.banner-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+}
+
+.savings-display {
+    position: absolute;
+    top: 300px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+}
+
+.info-display {
+    position: absolute;
+    top: 410px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+}
+
+.info-text {
+    font-weight: normal;
+    color: #333;
+    font-size: 14px;
+    line-height: 1.4;
+    width: 200px;
+}
+
+.savings-label {
+    font-weight: bold;
+    color: #333;
+    font-size: 16px;
+}
+
+#totalSavingsValue {
+    color: #4CAF50;
+    font-size: 18px;
+}
+
+/* Debug display - set display: none to hide */
+.debug-display {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 14px;
+    color: black;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.control-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+}
+
+input[type="range"] {
+    width: 150px;
+    margin-right: 10px;
+}
+
+button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 10px;
+}
+
+button:hover {
+    background: #45a049;
+}
+
+button:active {
+    background: #3d8b40;
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+button.paused {
+    background: #ff9800;
+}
+
+button.paused:hover {
+    background: #fb8c00;
+}
+
+button.paused:active {
+    background: #f57c00;
+}
+
+/* Pig and drop animation styles */
+.pig-container {
+    position: absolute;
+    left: 50%;
+    top: calc(200px * var(--scale));
+    transform: translateX(-50%);
+    width: calc(300px * var(--scale));
+    height: calc(300px * var(--scale));
+}
+
+.pig-container img {
+    width: 100%;
+    height: auto;
+}
+
+/* Invisible oval container for drops - centered on pig */
+.pig-oval-container {
+    position: absolute;
+    left: 50%;
+    top: calc(285px * var(--scale));
+    transform: translateX(-50%);
+    width: calc(150px * var(--scale));
+    height: calc(115px * var(--scale));
+    border-radius: 50%;
+    overflow: hidden;
+    pointer-events: none;
+    /* Uncomment below to see the container boundary during development */
+    /* border: 2px dashed rgba(255, 0, 0, 0.3); */
+}
+
+/* Fill level inside the oval */
+.pig-oval-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(to top, #2e7d32, #4caf50);
+    border-radius: 50%;
+    transition: height 0.3s ease-out;
+}
+
+/* Money drops */
+.money-drop {
+    position: fixed;
+    background: radial-gradient(ellipse at 30% 30%, #66bb6a, #2e7d32);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    box-shadow: 
+        inset -2px -2px 4px rgba(0, 0, 0, 0.2),
+        2px 2px 4px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Add a shine effect to drops */
+.money-drop::before {
+    content: '';
+    position: absolute;
+    top: 15%;
+    left: 25%;
+    width: 30%;
+    height: 30%;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+}
+
+/* Banker container */
+.banker-container {
+    position: absolute;
+    left: 50%;
+    top: calc(501px * var(--scale)); /* Pig bottom (200 + 300) + 1px spacing */
+    transform: translateX(-50%);
+    margin-left: calc(75px * var(--scale)); /* Offset from pig center - scales with images */
+}
+
+.banker-container img{
+    width: calc(500px * var(--scale));
+    height: calc(500px * var(--scale));
+}
+
+/* Banker's mug container for inflation drops */
+.banker-mug-container {
+    position: absolute;
+    left: 50%;
+    top: calc(680px * var(--scale)); /* Positioned relative to banker at top 501px + offset for mug position */
+    transform: translateX(-50%);
+    width: calc(75px * var(--scale));
+    height: calc(125px * var(--scale));
+    border-radius: calc(10px * var(--scale));
+    overflow: hidden;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Fill level inside the mug */
+.banker-mug-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(to top, #2e7d32, #4caf50);
+    border-radius: 10px;
+    transition: height 0.3s ease-out;
+}

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchasing Power Pig</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Banner image at top center -->
+    <div class="banner-container">
+        <img src="ppp-banner.png" alt="Purchasing Power Pig Banner">
+    </div>
+    
+    <!-- Pig image container -->
+    <div class="pig-container">
+        <img src="piggy.png" alt="Piggy Bank">
+    </div>
+    
+    <!-- Banker image container -->
+    <div class="banker-container">
+        <img src="banker.png" alt="Banker">
+    </div>
+    
+    <!-- Banker's mug container -->
+    <div class="banker-mug-container">
+        <div class="banker-mug-fill"></div>
+    </div>
+    
+    <!-- Invisible oval container for drop fill effect -->
+    <div class="pig-oval-container">
+        <div class="pig-oval-fill"></div>
+    </div>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>Starting Amount: $<span id="startAmountValue">50000</span></label>
+            <input type="range" id="startAmount" min="0" max="100000" value="50000" step="1000">
+        </div>
+        
+        <div class="control-group">
+            <label>Annual Inflation: <span id="inflationValue">7</span>%</label>
+            <input type="range" id="inflation" min="5" max="20" value="7" step="0.1">
+        </div>
+        
+        <div class="control-group">
+            <label>Monthly Savings: $<span id="savingsValue">100</span></label>
+            <input type="range" id="savings" min="0" max="1000" value="100" step="10">
+        </div>
+        
+        <div class="control-group">
+            <button id="restartButton">Restart</button>
+            <button id="pauseButton">Pause</button>
+        </div>
+    </div>
+
+    <!-- Savings display panel -->
+    <div class="savings-display">
+        <div class="savings-label">Savings: <span id="totalSavingsValue">$0</span></div>
+        <div class="savings-label">PP Lost: <span id="totalBankValue">0%</span></div>
+        <div class="savings-label">Date: <span id="currentDateValue">2025 October</span></div>
+    </div>
+
+    <!-- Info panel -->
+    <div class="info-display">
+        <div class="info-text">A full pig equals the purchasing power of $100K at 2025 October</div>
+    </div>
+
+    <!-- Debug display -->
+    <div class="debug-display">
+        Fill: <span id="debugFillValue">0.00</span>%<br>
+        Mug: <span id="debugMugValue">0.00</span>% | Bank $: <span id="debugBankDollars">$0</span>
+    </div>
+
+    <script>
+        document.getElementById('startAmount').addEventListener('input', (e) => {
+            document.getElementById('startAmountValue').textContent = e.target.value;
+            if (typeof window.initializeFromStartingAmount === 'function') {
+                window.initializeFromStartingAmount();
+            }
+        });
+        
+        document.getElementById('inflation').addEventListener('input', (e) => {
+            document.getElementById('inflationValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('savings').addEventListener('input', (e) => {
+            document.getElementById('savingsValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('restartButton').addEventListener('click', () => {
+            if (typeof window.resetPigFill === 'function') {
+                window.resetPigFill();
+            }
+        });
+        
+        document.getElementById('pauseButton').addEventListener('click', () => {
+            if (typeof window.togglePause === 'function') {
+                window.togglePause();
+            }
+        });
+    </script>
+    <script src="ppl-animation.js"></script>
+</body>
+</html>
