@@ -19,6 +19,7 @@ const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
 
 // Calculate and update window height based on actual available space
 // On mobile, prevents height increases from browser chrome hiding (only allows decreases or changes with width change)
+// Returns the constrained height value
 function updateWindowHeight() {
     const currentWidth = window.innerWidth;
     const currentHeight = window.innerHeight;
@@ -60,12 +61,15 @@ function updateWindowHeight() {
     // Update tracking variables
     previousWidth = currentWidth;
     previousHeight = currentHeight;
+    
+    return newHeight;
 }
 
 // Calculate and apply responsive scale based on viewport height
-function calculateAndApplyScale() {
+// Accepts optional height parameter (uses window.innerHeight if not provided)
+function calculateAndApplyScale(height) {
     const baseHeight = 1080; // Base design height
-    const viewportHeight = window.innerHeight;
+    const viewportHeight = height !== undefined ? height : window.innerHeight;
     
     // Calculate scale: clamp between (640/1080 = 0.593) and 1.0
     let scale = viewportHeight / baseHeight;
@@ -112,14 +116,14 @@ function debounce(func, wait) {
 }
 
 // Apply scale immediately when script loads (before DOM is ready)
-updateWindowHeight();
-calculateAndApplyScale();
+const initialHeight = updateWindowHeight();
+calculateAndApplyScale(initialHeight);
 adjustForMobile();
 
 // Listen for window resize with debouncing
 const debouncedResize = debounce(() => {
-    updateWindowHeight();
-    calculateAndApplyScale();
+    const constrainedHeight = updateWindowHeight();
+    calculateAndApplyScale(constrainedHeight);
     adjustForMobile();
 }, 150);
 
@@ -430,7 +434,8 @@ function animate(timestamp) {
 document.addEventListener('DOMContentLoaded', () => {
     // Redundant calls for safety in case DOM loads before the script executes
     // (these functions were already called at script load time)
-    calculateAndApplyScale();
+    const constrainedHeight = updateWindowHeight();
+    calculateAndApplyScale(constrainedHeight);
     
     // Ensure mobile adjustments are applied
     adjustForMobile();
