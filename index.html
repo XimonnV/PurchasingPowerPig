@@ -87,19 +87,112 @@
     </div>
 
     <script>
+        // Calculate balanced starting amount (rounds to nearest 1000)
+        function calculateBalancedStartAmount(monthlySavings, annualInflationPercent) {
+            const annualInflation = annualInflationPercent / 100;
+            
+            let calculatedAmount;
+            
+            // Handle division by zero (set to max if inflation is 0)
+            if (annualInflation === 0) {
+                calculatedAmount = 100000;
+            } else {
+                // Calculate: (monthly savings * 12) / annual inflation
+                calculatedAmount = (monthlySavings * 12) / annualInflation;
+                // Round to nearest 1000 (slider step)
+                calculatedAmount = Math.round(calculatedAmount / 1000) * 1000;
+                // Clamp to min/max range
+                calculatedAmount = Math.max(0, Math.min(100000, calculatedAmount));
+            }
+            
+            return calculatedAmount;
+        }
+        
+        // Calculate balanced monthly savings (rounds to nearest 10)
+        function calculateBalancedSavings(startingAmount, annualInflationPercent) {
+            const annualInflation = annualInflationPercent / 100;
+            
+            // Calculate: (starting amount * annual inflation) / 12
+            let calculatedSavings = (startingAmount * annualInflation) / 12;
+            // Round to nearest 10 (slider step)
+            calculatedSavings = Math.round(calculatedSavings / 10) * 10;
+            // Clamp to min/max range
+            calculatedSavings = Math.max(0, Math.min(1000, calculatedSavings));
+            
+            return calculatedSavings;
+        }
+        
+        // Calculate balanced inflation (rounds to nearest 0.1)
+        function calculateBalancedInflation(startingAmount, monthlySavings) {
+            let calculatedInflation;
+            
+            // Handle division by zero (set to default 7% if starting amount is 0)
+            if (startingAmount === 0) {
+                calculatedInflation = 7;
+            } else {
+                // Calculate: (monthly savings * 12) / starting amount * 100 to get percentage
+                calculatedInflation = (monthlySavings * 12) / startingAmount * 100;
+                // Round to 1 decimal place (slider step is 0.1)
+                calculatedInflation = Math.round(calculatedInflation * 10) / 10;
+                // Clamp to min/max range
+                calculatedInflation = Math.max(5, Math.min(20, calculatedInflation));
+            }
+            
+            return calculatedInflation;
+        }
+        
+        // Function to set balance icon for all three buttons
+        function setBalanceIcon(iconFile) {
+            const buttons = [
+                document.getElementById('balanceStartAmount'),
+                document.getElementById('balanceInflation'),
+                document.getElementById('balanceSavings')
+            ];
+            buttons.forEach(button => {
+                if (button) {
+                    button.style.backgroundImage = `url('${iconFile}')`;
+                }
+            });
+        }
+        
+        // Function to check if values are balanced
+        function checkBalance() {
+            const currentStartAmount = parseInt(document.getElementById('startAmount').value);
+            const currentInflation = parseFloat(document.getElementById('inflation').value);
+            const currentSavings = parseInt(document.getElementById('savings').value);
+            
+            // Calculate what each balanced value would be
+            const balancedStartAmount = calculateBalancedStartAmount(currentSavings, currentInflation);
+            const balancedSavings = calculateBalancedSavings(currentStartAmount, currentInflation);
+            const balancedInflation = calculateBalancedInflation(currentStartAmount, currentSavings);
+            
+            // Check if any of the three calculations match current values
+            const startAmountMatches = (currentStartAmount === balancedStartAmount);
+            const savingsMatches = (currentSavings === balancedSavings);
+            const inflationMatches = (currentInflation === balancedInflation);
+            
+            const isBalanced = startAmountMatches || savingsMatches || inflationMatches;
+            
+            // Update icon for all buttons
+            setBalanceIcon(isBalanced ? 'balance.png' : 'balance-tilt.png');
+        }
+        
         document.getElementById('startAmount').addEventListener('input', (e) => {
             document.getElementById('startAmountValue').textContent = e.target.value;
             if (typeof window.initializeFromStartingAmount === 'function') {
                 window.initializeFromStartingAmount();
             }
+            checkBalance(); // Check balance after manual adjustment
         });
         
         document.getElementById('inflation').addEventListener('input', (e) => {
             document.getElementById('inflationValue').textContent = e.target.value;
+            checkBalance(); // Check balance after manual adjustment
         });
         
         document.getElementById('savings').addEventListener('input', (e) => {
             document.getElementById('savingsValue').textContent = e.target.value;
+            checkBalance(); // Check balance after manual adjustment
         });
         
         document.getElementById('restartButton').addEventListener('click', () => {
@@ -118,49 +211,39 @@
         document.getElementById('balanceStartAmount').addEventListener('click', () => {
             const monthlySavings = parseInt(document.getElementById('savings').value);
             const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
-            const annualInflation = annualInflationPercent / 100;
             
-            let calculatedAmount;
+            const calculatedAmount = calculateBalancedStartAmount(monthlySavings, annualInflationPercent);
             
-            // Handle division by zero (set to max if inflation is 0)
-            if (annualInflation === 0) {
-                calculatedAmount = 100000;
-            } else {
-                // Calculate: (monthly savings * 12) / annual inflation
-                calculatedAmount = (monthlySavings * 12) / annualInflation;
-                // Round to nearest whole number
-                calculatedAmount = Math.round(calculatedAmount);
-                // Clamp to min/max range
-                calculatedAmount = Math.max(0, Math.min(100000, calculatedAmount));
-            }
+            // Set all buttons to balanced icon immediately
+            setBalanceIcon('balance.png');
             
             // Set the slider value
             const startAmountSlider = document.getElementById('startAmount');
             startAmountSlider.value = calculatedAmount;
             
-            // Trigger input event to update display and reinitialize
-            startAmountSlider.dispatchEvent(new Event('input'));
+            // Update display value manually
+            document.getElementById('startAmountValue').textContent = calculatedAmount;
+            if (typeof window.initializeFromStartingAmount === 'function') {
+                window.initializeFromStartingAmount();
+            }
         });
         
         // Balance button for Monthly Savings - calculates optimal monthly savings
         document.getElementById('balanceSavings').addEventListener('click', () => {
             const startingAmount = parseInt(document.getElementById('startAmount').value);
             const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
-            const annualInflation = annualInflationPercent / 100;
             
-            // Calculate: (starting amount * annual inflation) / 12
-            let calculatedSavings = (startingAmount * annualInflation) / 12;
-            // Round to nearest whole number
-            calculatedSavings = Math.round(calculatedSavings);
-            // Clamp to min/max range
-            calculatedSavings = Math.max(0, Math.min(1000, calculatedSavings));
+            const calculatedSavings = calculateBalancedSavings(startingAmount, annualInflationPercent);
+            
+            // Set all buttons to balanced icon immediately
+            setBalanceIcon('balance.png');
             
             // Set the slider value
             const savingsSlider = document.getElementById('savings');
             savingsSlider.value = calculatedSavings;
             
-            // Trigger input event to update display
-            savingsSlider.dispatchEvent(new Event('input'));
+            // Update display value manually
+            document.getElementById('savingsValue').textContent = calculatedSavings;
         });
         
         // Balance button for Inflation - calculates optimal inflation rate
@@ -168,27 +251,21 @@
             const startingAmount = parseInt(document.getElementById('startAmount').value);
             const monthlySavings = parseInt(document.getElementById('savings').value);
             
-            let calculatedInflation;
+            const calculatedInflation = calculateBalancedInflation(startingAmount, monthlySavings);
             
-            // Handle division by zero (set to default 7% if starting amount is 0)
-            if (startingAmount === 0) {
-                calculatedInflation = 7;
-            } else {
-                // Calculate: (monthly savings * 12) / starting amount * 100 to get percentage
-                calculatedInflation = (monthlySavings * 12) / startingAmount * 100;
-                // Round to 1 decimal place
-                calculatedInflation = Math.round(calculatedInflation * 10) / 10;
-                // Clamp to min/max range
-                calculatedInflation = Math.max(5, Math.min(20, calculatedInflation));
-            }
+            // Set all buttons to balanced icon immediately
+            setBalanceIcon('balance.png');
             
             // Set the slider value
             const inflationSlider = document.getElementById('inflation');
             inflationSlider.value = calculatedInflation;
             
-            // Trigger input event to update display
-            inflationSlider.dispatchEvent(new Event('input'));
+            // Update display value manually
+            document.getElementById('inflationValue').textContent = calculatedInflation;
         });
+        
+        // Set initial state to balance-tilt.png on page load
+        setBalanceIcon('balance-tilt.png');
     </script>
     <script src="ppl-animation.js"></script>
 </body>
