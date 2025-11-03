@@ -37,18 +37,27 @@
         <div class="controls">
             <div class="control-group">
                 <label>Starting Amount: $<span id="startAmountValue">50000</span></label>
-                <input type="range" id="startAmount" min="0" max="100000" value="50000" step="1000">
+                <div class="slider-row">
+                    <input type="range" id="startAmount" min="0" max="100000" value="50000" step="1000">
+                    <button id="balanceStartAmount" class="balance-button" aria-label="Balance"></button>
+                </div>
             </div>
             
             <div class="control-group">
                 <label class="label-deemphasized"><i>Purchasing Power loss</i></label>
                 <label>Debasement + CPI: <span id="inflationValue">7</span>%</label>
-                <input type="range" id="inflation" min="5" max="20" value="7" step="0.1">
+                <div class="slider-row">
+                    <input type="range" id="inflation" min="5" max="20" value="7" step="0.1">
+                    <button id="balanceInflation" class="balance-button" aria-label="Balance"></button>
+                </div>
             </div>
             
             <div class="control-group">
                 <label>Monthly Savings: $<span id="savingsValue">100</span></label>
-                <input type="range" id="savings" min="0" max="1000" value="100" step="10">
+                <div class="slider-row">
+                    <input type="range" id="savings" min="0" max="1000" value="100" step="10">
+                    <button id="balanceSavings" class="balance-button" aria-label="Balance"></button>
+                </div>
             </div>
             
             <div class="control-group">
@@ -103,6 +112,82 @@
             if (typeof window.togglePause === 'function') {
                 window.togglePause();
             }
+        });
+        
+        // Balance button for Starting Amount - calculates optimal starting amount
+        document.getElementById('balanceStartAmount').addEventListener('click', () => {
+            const monthlySavings = parseInt(document.getElementById('savings').value);
+            const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
+            const annualInflation = annualInflationPercent / 100;
+            
+            let calculatedAmount;
+            
+            // Handle division by zero (set to max if inflation is 0)
+            if (annualInflation === 0) {
+                calculatedAmount = 100000;
+            } else {
+                // Calculate: (monthly savings * 12) / annual inflation
+                calculatedAmount = (monthlySavings * 12) / annualInflation;
+                // Round to nearest whole number
+                calculatedAmount = Math.round(calculatedAmount);
+                // Clamp to min/max range
+                calculatedAmount = Math.max(0, Math.min(100000, calculatedAmount));
+            }
+            
+            // Set the slider value
+            const startAmountSlider = document.getElementById('startAmount');
+            startAmountSlider.value = calculatedAmount;
+            
+            // Trigger input event to update display and reinitialize
+            startAmountSlider.dispatchEvent(new Event('input'));
+        });
+        
+        // Balance button for Monthly Savings - calculates optimal monthly savings
+        document.getElementById('balanceSavings').addEventListener('click', () => {
+            const startingAmount = parseInt(document.getElementById('startAmount').value);
+            const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
+            const annualInflation = annualInflationPercent / 100;
+            
+            // Calculate: (starting amount * annual inflation) / 12
+            let calculatedSavings = (startingAmount * annualInflation) / 12;
+            // Round to nearest whole number
+            calculatedSavings = Math.round(calculatedSavings);
+            // Clamp to min/max range
+            calculatedSavings = Math.max(0, Math.min(1000, calculatedSavings));
+            
+            // Set the slider value
+            const savingsSlider = document.getElementById('savings');
+            savingsSlider.value = calculatedSavings;
+            
+            // Trigger input event to update display
+            savingsSlider.dispatchEvent(new Event('input'));
+        });
+        
+        // Balance button for Inflation - calculates optimal inflation rate
+        document.getElementById('balanceInflation').addEventListener('click', () => {
+            const startingAmount = parseInt(document.getElementById('startAmount').value);
+            const monthlySavings = parseInt(document.getElementById('savings').value);
+            
+            let calculatedInflation;
+            
+            // Handle division by zero (set to default 7% if starting amount is 0)
+            if (startingAmount === 0) {
+                calculatedInflation = 7;
+            } else {
+                // Calculate: (monthly savings * 12) / starting amount * 100 to get percentage
+                calculatedInflation = (monthlySavings * 12) / startingAmount * 100;
+                // Round to 1 decimal place
+                calculatedInflation = Math.round(calculatedInflation * 10) / 10;
+                // Clamp to min/max range
+                calculatedInflation = Math.max(5, Math.min(20, calculatedInflation));
+            }
+            
+            // Set the slider value
+            const inflationSlider = document.getElementById('inflation');
+            inflationSlider.value = calculatedInflation;
+            
+            // Trigger input event to update display
+            inflationSlider.dispatchEvent(new Event('input'));
         });
     </script>
     <script src="ppl-animation.js"></script>

@@ -94,7 +94,7 @@ body.mobile-mode .info-display {
     border-radius: 10px;
     backdrop-filter: blur(10px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-width: 200px;
+    min-width: 220px;
 }
 
 .info-text {
@@ -152,8 +152,42 @@ input[type="range"] {
     margin-right: 10px;
 }
 
+/* Container for slider + button alignment */
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Balance icon buttons next to sliders */
+.balance-button {
+    width: 50px;
+    height: 25px;
+    padding: 0;
+    margin: 0;
+    background-color: #4CAF50;
+    background-image: url('balance.png');
+    background-size: 70%;
+    background-position: center;
+    background-repeat: no-repeat;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.balance-button:hover {
+    background-color: #45a049;
+}
+
+.balance-button:active {
+    background-color: #3d8b40;
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 button {
-    background: #4CAF50;
+    background-color: #4CAF50;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -164,25 +198,25 @@ button {
 }
 
 button:hover {
-    background: #45a049;
+    background-color: #45a049;
 }
 
 button:active {
-    background: #3d8b40;
+    background-color: #3d8b40;
     transform: translateY(1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 button.paused {
-    background: #ff9800;
+    background-color: #ff9800;
 }
 
 button.paused:hover {
-    background: #fb8c00;
+    background-color: #fb8c00;
 }
 
 button.paused:active {
-    background: #f57c00;
+    background-color: #f57c00;
 }
 
 /* Pig and drop animation styles */
