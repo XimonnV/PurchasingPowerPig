@@ -178,7 +178,7 @@ function getScaleFactor() {
 
 // Drop class
 class Drop {
-    constructor(startX, startY, size, target = 'pig') {
+    constructor(startX, startY, size, target = 'pig', isInvisible = false) {
         this.x = startX;
         this.y = startY;
         this.size = size;
@@ -187,6 +187,8 @@ class Drop {
         this.speed = (3 + Math.random() * 2) * scaleFactor; // Falling speed scaled
         this.target = target; // 'pig' or 'mug'
         this.dollarAmount = 0; // Will be set externally
+        this.isInvisible = isInvisible; // For $0 savings drops
+        this.onLandCallback = null; // Callback when drop lands
         this.element = this.createElement();
     }
 
@@ -197,6 +199,9 @@ class Drop {
         drop.style.top = this.y + 'px';
         drop.style.width = this.size + 'px';
         drop.style.height = (this.size * 1.5) + 'px';
+        if (this.isInvisible) {
+            drop.style.opacity = '0'; // Make invisible
+        }
         document.body.appendChild(drop);
         return drop;
     }
@@ -220,16 +225,26 @@ class Drop {
             const targetY = fillLevel > 0 ? waterSurfaceY : ovalRect.bottom - 5;
 
             if (this.y >= targetY - this.size / 2) {
-                // Add monthly savings to total
-                const monthlySavings = getMonthlySavings();
-                totalSavings += monthlySavings;
-                updateSavingsDisplay();
+                // Add monthly savings to total (only if not invisible)
+                if (!this.isInvisible) {
+                    const monthlySavings = getMonthlySavings();
+                    totalSavings += monthlySavings;
+                    updateSavingsDisplay();
+                    
+                    // Add to fill level if not full (based on dollar amount)
+                    if (fillLevel < 100) {
+                        const dropVolume = monthlySavings / 1000; // $100,000 total to fill
+                        fillLevel = Math.min(100, fillLevel + dropVolume);
+                        updateFillDisplay();
+                    }
+                }
                 
-                // Add to fill level if not full (based on dollar amount)
-                if (fillLevel < 100) {
-                    const dropVolume = monthlySavings / 1000; // $100,000 total to fill
-                    fillLevel = Math.min(100, fillLevel + dropVolume);
-                    updateFillDisplay();
+                // Create ripple effect on impact
+                createRipple('pig');
+                
+                // Trigger callback if set (for inflation trigger)
+                if (this.onLandCallback) {
+                    this.onLandCallback();
                 }
                 
                 // Remove drop
@@ -262,6 +277,9 @@ class Drop {
                     updateMugFillDisplay();
                 }
                 
+                // Create ripple effect on impact
+                createRipple('mug');
+                
                 // Remove drop
                 this.element.remove();
                 return false;
@@ -279,7 +297,19 @@ function updateFillDisplay() {
         fillElement.style.height = fillLevel + '%';
     }
     
-    // Update debug display for pig fill
+    // Update percentage display on pig
+    const pigPercentage = document.getElementById('pigPercentageDisplay');
+    if (pigPercentage) {
+        pigPercentage.textContent = Math.round(fillLevel) + '%';
+        // Only show when fill level > 0
+        if (fillLevel > 0) {
+            pigPercentage.style.display = 'block';
+        } else {
+            pigPercentage.style.display = 'none';
+        }
+    }
+    
+    // Update debug display for pig fill (if it exists)
     const debugValue = document.getElementById('debugFillValue');
     if (debugValue) {
         debugValue.textContent = fillLevel.toFixed(2);
@@ -377,21 +407,45 @@ function initializeFromStartingAmount() {
 function createDrop() {
     const savings = getMonthlySavings();
     
-    // No drop if savings is 0
-    if (savings === 0) return;
-
-    // Calculate drop size using helper function
-    const size = calculateDropSize(savings);
-
     // Get pig and oval position
     const oval = document.querySelector('.pig-oval-container');
-    if (!oval) return;
+    if (!oval) return null;
 
     const ovalRect = oval.getBoundingClientRect();
+    
+    // Determine if drop should be invisible
+    const isInvisible = savings === 0;
+    
+    // Calculate drop size (use small size for invisible drops)
+    const size = isInvisible ? 5 * getScaleFactor() : calculateDropSize(savings);
+    
     const dropX = ovalRect.left + ovalRect.width / 2 - size / 2;
     const dropY = 0;
 
-    drops.push(new Drop(dropX, dropY, size, 'pig'));
+    const drop = new Drop(dropX, dropY, size, 'pig', isInvisible);
+    
+    // Set callback to trigger inflation 500ms after landing
+    drop.onLandCallback = () => {
+        setTimeout(() => {
+            // Only proceed if not paused
+            if (!isPaused) {
+                const monthlyInflation = getMonthlyInflationRate();
+                const inflationReduction = fillLevel * monthlyInflation; // percentage points lost
+                const inflationDollars = (inflationReduction / 100) * 100000; // convert to dollars based on $100K
+                
+                fillLevel = fillLevel * (1 - monthlyInflation);
+                updateFillDisplay();
+                
+                // Create inflation drop if there's a reduction
+                if (inflationDollars > 0) {
+                    createInflationDrop(inflationDollars);
+                }
+            }
+        }, 500);
+    };
+    
+    drops.push(drop);
+    return drop;
 }
 
 // Create an inflation drop (falls from pig to banker's mug)
@@ -414,26 +468,40 @@ function createInflationDrop(dollarAmount) {
     drops.push(drop);
 }
 
+// Create a ripple effect on the liquid surface
+function createRipple(target) {
+    let fillElement;
+    let containerClass;
+    
+    if (target === 'pig') {
+        fillElement = document.querySelector('.pig-oval-fill');
+        containerClass = 'pig-ripple';
+    } else if (target === 'mug') {
+        fillElement = document.querySelector('.banker-mug-fill');
+        containerClass = 'mug-ripple';
+    }
+    
+    if (!fillElement) return;
+    
+    // Create ripple element
+    const ripple = document.createElement('div');
+    ripple.className = `ripple ${containerClass}`;
+    fillElement.appendChild(ripple);
+    
+    // Remove ripple after animation completes (750ms)
+    setTimeout(() => {
+        ripple.remove();
+    }, 750);
+}
+
 // Animation loop
 function animate(timestamp) {
     // Skip updates if paused
     if (!isPaused) {
         // Create drops every second (1 month interval)
         if (timestamp - lastDropTime >= dropInterval) {
-            // First apply monthly inflation to reduce fillLevel
-            const monthlyInflation = getMonthlyInflationRate();
-            const inflationReduction = fillLevel * monthlyInflation; // percentage points lost
-            const inflationDollars = (inflationReduction / 100) * 100000; // convert to dollars based on $100K
-            
-            fillLevel = fillLevel * (1 - monthlyInflation);
-            updateFillDisplay();
-            
-            // Create inflation drop if there's a reduction
-            if (inflationDollars > 0) {
-                createInflationDrop(inflationDollars);
-            }
-            
-            // Then create the savings drop
+            // Create the savings drop (or invisible drop if savings is $0)
+            // The drop's callback will trigger inflation 500ms after it lands
             createDrop();
             
             // Increment the simulation date by one month
