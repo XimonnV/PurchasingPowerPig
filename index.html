@@ -146,7 +146,8 @@
         }
         
         // Function to set balance icon for all three buttons
-        function setBalanceIcon(iconFile) {
+        // state: 'balanced', 'shrink', or 'grow'
+        function setBalanceIcon(state) {
             const buttons = [
                 document.getElementById('balanceStartAmount'),
                 document.getElementById('balanceInflation'),
@@ -154,7 +155,16 @@
             ];
             buttons.forEach(button => {
                 if (button) {
-                    button.style.backgroundImage = `url('${iconFile}')`;
+                    if (state === 'balanced') {
+                        button.style.backgroundImage = `url('balance.png')`;
+                        button.style.transform = 'none';
+                    } else if (state === 'grow') {
+                        button.style.backgroundImage = `url('balance-tilt.png')`;
+                        button.style.transform = 'scaleX(-1)'; // Flip horizontally
+                    } else { // 'shrink'
+                        button.style.backgroundImage = `url('balance-tilt.png')`;
+                        button.style.transform = 'none';
+                    }
                 }
             });
         }
@@ -177,8 +187,23 @@
             
             const isBalanced = startAmountMatches || savingsMatches || inflationMatches;
             
-            // Update icon for all buttons
-            setBalanceIcon(isBalanced ? 'balance.png' : 'balance-tilt.png');
+            if (isBalanced) {
+                setBalanceIcon('balanced');
+            } else {
+                // Determine if pig will grow or shrink
+                // Calculate monthly inflation loss vs monthly savings gain
+                const annualInflation = currentInflation / 100;
+                const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
+                const monthlyInflationLoss = currentStartAmount * monthlyRate;
+                
+                if (currentSavings > monthlyInflationLoss) {
+                    // Pig will grow
+                    setBalanceIcon('grow');
+                } else {
+                    // Pig will shrink
+                    setBalanceIcon('shrink');
+                }
+            }
         }
         
         document.getElementById('startAmount').addEventListener('input', (e) => {
@@ -219,7 +244,7 @@
             const calculatedAmount = calculateBalancedStartAmount(monthlySavings, annualInflationPercent);
             
             // Set all buttons to balanced icon immediately
-            setBalanceIcon('balance.png');
+            setBalanceIcon('balanced');
             
             // Set the slider value
             const startAmountSlider = document.getElementById('startAmount');
@@ -240,7 +265,7 @@
             const calculatedSavings = calculateBalancedSavings(startingAmount, annualInflationPercent);
             
             // Set all buttons to balanced icon immediately
-            setBalanceIcon('balance.png');
+            setBalanceIcon('balanced');
             
             // Set the slider value
             const savingsSlider = document.getElementById('savings');
@@ -258,7 +283,7 @@
             const calculatedInflation = calculateBalancedInflation(startingAmount, monthlySavings);
             
             // Set all buttons to balanced icon immediately
-            setBalanceIcon('balance.png');
+            setBalanceIcon('balanced');
             
             // Set the slider value
             const inflationSlider = document.getElementById('inflation');
@@ -269,7 +294,7 @@
         });
         
         // Set initial state to balance-tilt.png on page load
-        setBalanceIcon('balance-tilt.png');
+        setBalanceIcon('shrink');
     </script>
     <script src="ppl-animation.js"></script>
 </body>
