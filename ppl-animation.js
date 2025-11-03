@@ -13,59 +13,61 @@ let currentSimDate = new Date(); // Current simulation date (year and month)
 let previousWidth = window.innerWidth;
 let previousHeight = window.innerHeight;
 
-// Track initial mobile height for locked scale on mobile
-let initialMobileHeight = null;
+// svh support detection
+let svhSupported = false;
+let heightProbe = null;
 
 // Month names for date display
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December'];
+    'July', 'August', 'September', 'October', 'November', 'December'];
 
-// Calculate and update window height based on actual available space
-// On mobile, prevents height increases from browser chrome hiding (only allows decreases or changes with width change)
-// Returns the constrained height value
-function updateWindowHeight() {
-    const currentWidth = window.innerWidth;
-    const currentHeight = window.innerHeight;
+// Create a hidden probe element to detect svh support and get pixel value
+function initializeHeightProbe() {
+    heightProbe = document.createElement('div');
+    heightProbe.style.cssText = 'position:fixed; top:-9999px; height:100svh; pointer-events:none;';
+    document.body.appendChild(heightProbe);
     
-    // Determine if we're in mobile portrait mode
-    const isMobilePortrait = (currentHeight / currentWidth) > 1.5;
-    
-    let shouldUpdate = false;
-    let newHeight = currentHeight;
-    
-    if (!isMobilePortrait) {
-        // Desktop mode: always update freely
-        shouldUpdate = true;
-        newHeight = currentHeight;
-    } else {
-        // Mobile mode: constrained updates
-        const widthChanged = currentWidth !== previousWidth;
-        const heightDecreased = currentHeight < previousHeight;
-        
-        if (widthChanged) {
-            // Width changed (rotation/orientation change) - accept new height
-            shouldUpdate = true;
-            newHeight = currentHeight;
-        } else if (heightDecreased) {
-            // Height decreased (chrome appearing) - accept smaller height
-            shouldUpdate = true;
-            newHeight = currentHeight;
-        } else {
-            // Height increased but width same (chrome hiding) - keep previous smaller height
-            shouldUpdate = true;
-            newHeight = previousHeight; // Keep the smaller height
+    // Check if svh is supported
+    const probeHeight = heightProbe.offsetHeight;
+    svhSupported = probeHeight > 0 && probeHeight <= window.innerHeight;
+}
+
+// Get stable height (svh if supported, else fallback to innerHeight with min-lock)
+function getStableHeight(currentInnerHeight) {
+    if (svhSupported && heightProbe) {
+        const probeHeight = heightProbe.offsetHeight;
+        if (probeHeight > 0 && probeHeight <= window.innerHeight) {
+            // svh supported: Use stable small height (doesn't change with browser chrome)
+            return probeHeight;
         }
     }
     
-    if (shouldUpdate) {
-        document.documentElement.style.setProperty('--window-height', newHeight + 'px');
+    // Fallback: Use min-lock logic for browsers without svh support
+    const widthChanged = window.innerWidth !== previousWidth;
+    const heightDecreased = currentInnerHeight < previousHeight;
+    
+    let stableHeight = previousHeight;
+    
+    if (widthChanged || heightDecreased) {
+        stableHeight = currentInnerHeight;
     }
     
+    return stableHeight;
+}
+
+// Calculate and update window height based on actual available space
+// Returns the constrained height value
+function updateWindowHeight() {
+    const currentHeight = window.innerHeight;
+    const stableHeight = getStableHeight(currentHeight);
+    
+    document.documentElement.style.setProperty('--window-height', `${stableHeight}px`);
+    
     // Update tracking variables
-    previousWidth = currentWidth;
+    previousWidth = window.innerWidth;
     previousHeight = currentHeight;
     
-    return newHeight;
+    return stableHeight;
 }
 
 // Calculate and apply responsive scale based on viewport height
@@ -118,15 +120,11 @@ function debounce(func, wait) {
     };
 }
 
+// Initialize height probe early
+initializeHeightProbe();
+
 // Apply scale immediately when script loads (before DOM is ready)
 const initialHeight = updateWindowHeight();
-const isMobileOnLoad = (window.innerHeight / window.innerWidth) > 1.5;
-
-// Capture initial mobile height if on mobile
-if (isMobileOnLoad) {
-    initialMobileHeight = initialHeight;
-}
-
 calculateAndApplyScale(initialHeight);
 adjustForMobile();
 
@@ -140,15 +138,10 @@ const debouncedResize = debounce(() => {
     // Update constrained height
     const constrainedHeight = updateWindowHeight();
     
-    // On mobile: only update scale if width changed (rotation)
-    // On desktop: always update scale
-    if (!isMobilePortrait || widthChanged) {
+    // If svh is supported, always update scale (svh handles stability)
+    // If not supported, only update scale on width change (rotation) in mobile mode
+    if (svhSupported || !isMobilePortrait || widthChanged) {
         calculateAndApplyScale(constrainedHeight);
-        
-        // Update initial mobile height if we're now in mobile mode after rotation
-        if (isMobilePortrait && widthChanged) {
-            initialMobileHeight = constrainedHeight;
-        }
     }
     
     adjustForMobile();
@@ -183,6 +176,36 @@ function getScaleFactor() {
     return parseFloat(scale) || 1;
 }
 
+// Cache for getBoundingClientRect to prevent layout thrashing
+let ovalRectCache = null;
+let mugRectCache = null;
+let rectCacheTime = 0;
+const RECT_CACHE_DURATION = 100; // Cache for 100ms
+
+function getCachedOvalRect() {
+    const now = performance.now();
+    if (!ovalRectCache || (now - rectCacheTime) > RECT_CACHE_DURATION) {
+        const oval = document.querySelector('.pig-oval-container');
+        if (oval) {
+            ovalRectCache = oval.getBoundingClientRect();
+            rectCacheTime = now;
+        }
+    }
+    return ovalRectCache;
+}
+
+function getCachedMugRect() {
+    const now = performance.now();
+    if (!mugRectCache || (now - rectCacheTime) > RECT_CACHE_DURATION) {
+        const mug = document.querySelector('.banker-mug-container');
+        if (mug) {
+            mugRectCache = mug.getBoundingClientRect();
+            rectCacheTime = now;
+        }
+    }
+    return mugRectCache;
+}
+
 // Drop class
 class Drop {
     constructor(startX, startY, size, target = 'pig') {
@@ -214,10 +237,8 @@ class Drop {
 
         if (this.target === 'pig') {
             // Check if drop reached the oval container
-            const oval = document.querySelector('.pig-oval-container');
-            if (!oval) return true;
-
-            const ovalRect = oval.getBoundingClientRect();
+            const ovalRect = getCachedOvalRect();
+            if (!ovalRect) return true;
             
             // Calculate current fill level position in oval (use actual oval height)
             const fillHeight = (fillLevel / 100) * ovalRect.height;
@@ -245,10 +266,8 @@ class Drop {
             }
         } else if (this.target === 'mug') {
             // Check if drop reached the banker's mug
-            const mug = document.querySelector('.banker-mug-container');
-            if (!mug) return true;
-
-            const mugRect = mug.getBoundingClientRect();
+            const mugRect = getCachedMugRect();
+            if (!mugRect) return true;
             
             // Calculate current fill level position in mug (use actual mug height)
             const fillHeight = (mugFillLevel / 100) * mugRect.height;
@@ -370,7 +389,7 @@ function initializeFromStartingAmount() {
     const startingAmount = getStartingAmount();
     totalSavings = startingAmount;
     totalBankSavings = 0;
-    fillLevel = (startingAmount / 100000) * 100; // Since pig fills at $100,000
+    fillLevel = (startingAmount / 100000) * 100; // FIXED: $100,000 total to fill pig
     mugFillLevel = 0;
     currentSimDate = new Date(); // Reset to current date
     updateFillDisplay();
@@ -430,7 +449,7 @@ function animate(timestamp) {
             // First apply monthly inflation to reduce fillLevel
             const monthlyInflation = getMonthlyInflationRate();
             const inflationReduction = fillLevel * monthlyInflation; // percentage points lost
-            const inflationDollars = (inflationReduction / 100) * 100000; // convert to dollars
+            const inflationDollars = (inflationReduction / 100) * 100000; // FIXED: convert to dollars based on $100K
             
             fillLevel = fillLevel * (1 - monthlyInflation);
             updateFillDisplay();
@@ -459,8 +478,12 @@ function animate(timestamp) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Ensure height probe is initialized (should already be done, but safety check)
+    if (!heightProbe) {
+        initializeHeightProbe();
+    }
+    
     // Redundant calls for safety in case DOM loads before the script executes
-    // (these functions were already called at script load time)
     const constrainedHeight = updateWindowHeight();
     calculateAndApplyScale(constrainedHeight);
     
@@ -481,6 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function resetPigFill() {
     drops.forEach(drop => drop.element.remove());
     drops = [];
+    // Clear rect cache on reset
+    ovalRectCache = null;
+    mugRectCache = null;
     initializeFromStartingAmount();
 }
 

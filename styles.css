@@ -1,6 +1,6 @@
 :root {
     --scale: 1; /* Will be set by JavaScript */
-    --window-height: 100vh; /* Will be set by JavaScript based on actual window space */
+    --window-height: 100svh; /* Use small viewport height (stable with browser chrome visible) */
 }
 
 /* Hide scaled elements until JavaScript applies the scale */
@@ -23,7 +23,7 @@ body {
 
 /* In mobile mode, ensure body is tall enough for scrolling */
 body.mobile-mode {
-    min-height: 200vh; /* Ensure there's content to scroll */
+    min-height: calc(2 * var(--window-height)); /* Ensure there's content to scroll (equivalent to 200svh) */
 }
 
 /* Banner at top center - easily adjustable positioning */
@@ -227,6 +227,7 @@ button.paused:active {
     transform: translateX(-50%);
     width: calc(300px * var(--scale));
     height: calc(300px * var(--scale));
+    transition: all 0.3s ease; /* Smooth transitions for resize events */
 }
 
 .pig-container img {
@@ -267,8 +268,8 @@ button.paused:active {
     background: radial-gradient(ellipse at 30% 30%, #66bb6a, #2e7d32);
     border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
     box-shadow: 
-        inset -2px -2px 4px rgba(0, 0, 0, 0.2),
-        2px 2px 4px rgba(0, 0, 0, 0.3);
+    inset -2px -2px 4px rgba(0, 0, 0, 0.2),
+    2px 2px 4px rgba(0, 0, 0, 0.3);
     pointer-events: none;
     z-index: 1000;
 }
