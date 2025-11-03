@@ -176,36 +176,6 @@ function getScaleFactor() {
     return parseFloat(scale) || 1;
 }
 
-// Cache for getBoundingClientRect to prevent layout thrashing
-let ovalRectCache = null;
-let mugRectCache = null;
-let rectCacheTime = 0;
-const RECT_CACHE_DURATION = 100; // Cache for 100ms
-
-function getCachedOvalRect() {
-    const now = performance.now();
-    if (!ovalRectCache || (now - rectCacheTime) > RECT_CACHE_DURATION) {
-        const oval = document.querySelector('.pig-oval-container');
-        if (oval) {
-            ovalRectCache = oval.getBoundingClientRect();
-            rectCacheTime = now;
-        }
-    }
-    return ovalRectCache;
-}
-
-function getCachedMugRect() {
-    const now = performance.now();
-    if (!mugRectCache || (now - rectCacheTime) > RECT_CACHE_DURATION) {
-        const mug = document.querySelector('.banker-mug-container');
-        if (mug) {
-            mugRectCache = mug.getBoundingClientRect();
-            rectCacheTime = now;
-        }
-    }
-    return mugRectCache;
-}
-
 // Drop class
 class Drop {
     constructor(startX, startY, size, target = 'pig') {
@@ -237,8 +207,10 @@ class Drop {
 
         if (this.target === 'pig') {
             // Check if drop reached the oval container
-            const ovalRect = getCachedOvalRect();
-            if (!ovalRect) return true;
+            const oval = document.querySelector('.pig-oval-container');
+            if (!oval) return true;
+
+            const ovalRect = oval.getBoundingClientRect();
             
             // Calculate current fill level position in oval (use actual oval height)
             const fillHeight = (fillLevel / 100) * ovalRect.height;
@@ -266,8 +238,10 @@ class Drop {
             }
         } else if (this.target === 'mug') {
             // Check if drop reached the banker's mug
-            const mugRect = getCachedMugRect();
-            if (!mugRect) return true;
+            const mug = document.querySelector('.banker-mug-container');
+            if (!mug) return true;
+
+            const mugRect = mug.getBoundingClientRect();
             
             // Calculate current fill level position in mug (use actual mug height)
             const fillHeight = (mugFillLevel / 100) * mugRect.height;
@@ -389,7 +363,7 @@ function initializeFromStartingAmount() {
     const startingAmount = getStartingAmount();
     totalSavings = startingAmount;
     totalBankSavings = 0;
-    fillLevel = (startingAmount / 100000) * 100; // FIXED: $100,000 total to fill pig
+    fillLevel = (startingAmount / 100000) * 100; // $100,000 total to fill pig
     mugFillLevel = 0;
     currentSimDate = new Date(); // Reset to current date
     updateFillDisplay();
@@ -449,7 +423,7 @@ function animate(timestamp) {
             // First apply monthly inflation to reduce fillLevel
             const monthlyInflation = getMonthlyInflationRate();
             const inflationReduction = fillLevel * monthlyInflation; // percentage points lost
-            const inflationDollars = (inflationReduction / 100) * 100000; // FIXED: convert to dollars based on $100K
+            const inflationDollars = (inflationReduction / 100) * 100000; // convert to dollars based on $100K
             
             fillLevel = fillLevel * (1 - monthlyInflation);
             updateFillDisplay();
@@ -504,9 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function resetPigFill() {
     drops.forEach(drop => drop.element.remove());
     drops = [];
-    // Clear rect cache on reset
-    ovalRectCache = null;
-    mugRectCache = null;
     initializeFromStartingAmount();
 }
 
