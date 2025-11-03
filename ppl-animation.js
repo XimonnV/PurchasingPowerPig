@@ -13,6 +13,9 @@ let currentSimDate = new Date(); // Current simulation date (year and month)
 let previousWidth = window.innerWidth;
 let previousHeight = window.innerHeight;
 
+// Track initial mobile height for locked scale on mobile
+let initialMobileHeight = null;
+
 // Month names for date display
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -117,13 +120,37 @@ function debounce(func, wait) {
 
 // Apply scale immediately when script loads (before DOM is ready)
 const initialHeight = updateWindowHeight();
+const isMobileOnLoad = (window.innerHeight / window.innerWidth) > 1.5;
+
+// Capture initial mobile height if on mobile
+if (isMobileOnLoad) {
+    initialMobileHeight = initialHeight;
+}
+
 calculateAndApplyScale(initialHeight);
 adjustForMobile();
 
 // Listen for window resize with debouncing
 const debouncedResize = debounce(() => {
+    const currentWidth = window.innerWidth;
+    const currentHeight = window.innerHeight;
+    const isMobilePortrait = (currentHeight / currentWidth) > 1.5;
+    const widthChanged = currentWidth !== previousWidth;
+    
+    // Update constrained height
     const constrainedHeight = updateWindowHeight();
-    calculateAndApplyScale(constrainedHeight);
+    
+    // On mobile: only update scale if width changed (rotation)
+    // On desktop: always update scale
+    if (!isMobilePortrait || widthChanged) {
+        calculateAndApplyScale(constrainedHeight);
+        
+        // Update initial mobile height if we're now in mobile mode after rotation
+        if (isMobilePortrait && widthChanged) {
+            initialMobileHeight = constrainedHeight;
+        }
+    }
+    
     adjustForMobile();
 }, 150);
 
