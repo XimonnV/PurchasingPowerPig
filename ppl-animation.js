@@ -214,8 +214,31 @@ class Drop {
         const targetY = fillLevel > 0 ? waterSurfaceY : ovalRect.bottom - CONFIG.collision.emptyContainerOffset;
 
         if (this.y >= targetY - this.size / 2) {
-            // Add monthly savings using state manager
+            // Add monthly savings when drop lands (pig grows)
             stateManager.addMonthlySavingsToPig();
+            
+            // Advance month
+            stateManager.advanceMonth();
+            updateDateDisplay();
+            
+            // Schedule inflation 500ms later
+            setTimeout(() => {
+                // Calculate and apply monthly inflation immediately
+                const monthlyRate = stateManager.getMonthlyInflationRate();
+                const currentFillLevel = stateManager.get('fillLevel');
+                const inflationReduction = currentFillLevel * monthlyRate; // percentage points
+                const inflationDollars = fillPercentageToDollars(inflationReduction, 'pig');
+                
+                // Apply inflation immediately (pig shrinks now)
+                if (inflationReduction > 0) {
+                    stateManager.updateFillLevel(currentFillLevel - inflationReduction);
+                }
+                
+                // Create inflation drop (purely visual - value already applied)
+                if (inflationDollars > 0) {
+                    createInflationDrop(inflationDollars, 0); // Pass 0 since already applied
+                }
+            }, CONFIG.INFLATION_DELAY_MS);
             
             // Create ripple effect
             createRipple(oval, CONFIG.cssClasses.pigRipple);
@@ -244,7 +267,8 @@ class Drop {
         const targetY = mugFillLevel > 0 ? waterSurfaceY : mugRect.bottom - CONFIG.collision.emptyContainerOffset;
 
         if (this.y >= targetY - this.size / 2) {
-            // Add inflation loss to mug using state manager
+            // Note: Pig fill already reduced when drop was released
+            // Just add to mug and totalBankSavings here
             stateManager.addInflationLossToMug(this.dollarAmount);
             
             // Create ripple effect
@@ -451,8 +475,10 @@ function createDrop() {
 
 /**
  * Create an inflation drop (falls from pig to banker's mug)
+ * @param {number} dollarAmount - Dollar amount lost to inflation
+ * @param {number} percentageReduction - Percentage points to reduce from pig fill level
  */
-function createInflationDrop(dollarAmount) {
+function createInflationDrop(dollarAmount, percentageReduction) {
     if (dollarAmount <= 0) return;
 
     // Calculate drop size
@@ -468,6 +494,7 @@ function createInflationDrop(dollarAmount) {
 
     const drop = new Drop(dropX, dropY, size, 'mug');
     drop.dollarAmount = dollarAmount;
+    drop.percentageReduction = percentageReduction; // Store percentage to reduce from pig
     stateManager.addDrop(drop);
 }
 
@@ -480,37 +507,9 @@ function createInflationDrop(dollarAmount) {
  */
 function animate(timestamp) {
     const isPaused = stateManager.get('isPaused');
-    const lastDropTime = stateManager.get('lastDropTime');
     
     // Skip updates if paused
     if (!isPaused) {
-        // Create drops every DROP_INTERVAL_MS (1 month interval)
-        if (timestamp - lastDropTime >= CONFIG.DROP_INTERVAL_MS) {
-            // First apply monthly inflation to reduce fillLevel
-            const inflationDollars = stateManager.applyMonthlyInflation();
-            
-            // Update visual display
-            updateFillDisplay();
-            
-            // Create inflation drop if there's a reduction
-            if (inflationDollars > 0) {
-                // Small delay before inflation drop appears
-                setTimeout(() => {
-                    createInflationDrop(inflationDollars);
-                }, CONFIG.INFLATION_DELAY_MS);
-            }
-            
-            // Then create the savings drop
-            createDrop();
-            
-            // Advance simulation date
-            stateManager.advanceMonth();
-            updateDateDisplay();
-            
-            // Update last drop time
-            stateManager.updateLastDropTime(timestamp);
-        }
-
         // Update all drops and filter out completed ones
         const drops = stateManager.get('drops');
         const activeDrops = drops.filter(drop => drop.update());
@@ -522,6 +521,38 @@ function animate(timestamp) {
     }
 
     requestAnimationFrame(animate);
+}
+
+/**
+ * Interval timer for creating savings drops (every 1000ms)
+ */
+let savingsDropInterval = null;
+
+/**
+ * Start the savings drop interval timer
+ */
+function startSavingsDropTimer() {
+    // Clear any existing interval
+    if (savingsDropInterval) {
+        clearInterval(savingsDropInterval);
+    }
+    
+    // Create savings drops every 1000ms
+    savingsDropInterval = setInterval(() => {
+        if (!stateManager.get('isPaused')) {
+            createDrop();
+        }
+    }, CONFIG.DROP_INTERVAL_MS);
+}
+
+/**
+ * Stop the savings drop interval timer
+ */
+function stopSavingsDropTimer() {
+    if (savingsDropInterval) {
+        clearInterval(savingsDropInterval);
+        savingsDropInterval = null;
+    }
 }
 
 // ============================================================================
@@ -565,6 +596,14 @@ function setupStateSubscriptions() {
     // Update pause button UI when isPaused changes
     stateManager.subscribe('isPaused', () => {
         updatePauseButtonUI();
+        
+        // Stop or start savings drop timer based on pause state
+        const isPaused = stateManager.get('isPaused');
+        if (isPaused) {
+            stopSavingsDropTimer();
+        } else {
+            startSavingsDropTimer();
+        }
     });
 }
 
@@ -635,6 +674,12 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePauseButtonUI();
     updateInfoPanel();
     
+    // Create first savings drop
+    createDrop();
+    
+    // Start interval timer for subsequent savings drops (every 1000ms)
+    startSavingsDropTimer();
+    
     // Start animation loop
     requestAnimationFrame(animate);
 });
@@ -648,6 +693,10 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function resetPigFill() {
     stateManager.reset();
+    // Create first savings drop
+    createDrop();
+    // Restart the savings drop interval timer
+    startSavingsDropTimer();
 }
 
 /**
