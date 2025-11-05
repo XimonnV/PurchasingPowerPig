@@ -27,6 +27,7 @@ class StateManager {
             drops: [],                              // Array of active Drop objects
             lastDropTime: 0,                        // Timestamp of last drop creation
             isPaused: false,                        // Animation pause state
+            isStartState: true,                     // Whether in initial start/welcome state
             
             // UI state
             previousWidth: window.innerWidth,

@@ -116,7 +116,7 @@ body.mobile-mode .info-display {
     font-size: 18px;
 }
 
-#ppValue {
+#ppValueFormatted {
     color: #4CAF50; /* Green color for PP value */
     font-size: 18px;
 }
@@ -385,3 +385,55 @@ button.paused:active {
     transition: height 0.3s ease-out;
     overflow: visible; /* Allow ripples to show at top */
 }
+
+/* ============================================================================
+   START STATE / WELCOME SCREEN
+   ============================================================================ */
+
+/* Overlay - 50% black backdrop (below banner, above everything else) */
+.start-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1500; /* Below banner (2000) but above drops (1000) */
+    pointer-events: none; /* Allow clicks through to controls */
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+}
+
+/* Hidden when not in start state */
+.start-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Panel container in start state - centered horizontally, 2/3 down vertically */
+body.start-state .panel-container {
+    position: fixed;
+    top: 66.67%; /* 2/3 down the screen */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    right: auto; /* Override normal positioning */
+    transition: all 0.5s ease-out;
+    z-index: 2500; /* Above overlay */
+}
+
+/* In start state, show only controls (hide other panels) */
+body.start-state .savings-display,
+body.start-state .info-display {
+    display: none;
+}
+
+/* In start state, hide pause button */
+body.start-state #pauseButton {
+    display: none;
+}
+
+/* Smooth transition back to normal position */
+body:not(.start-state) .panel-container {
+    transition: all 0.5s ease-out;
+}
+

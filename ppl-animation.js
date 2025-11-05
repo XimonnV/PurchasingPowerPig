@@ -387,17 +387,23 @@ function updateDateDisplay() {
 
 /**
  * Update the PP (Purchasing Power) display
+ * Format: PP: $(YYYY-MMM)XX,XXX
  */
 function updatePPDisplay() {
-    const ppStartDate = document.getElementById(CONFIG.elementIds.ppStartDate);
-    const ppValue = document.getElementById(CONFIG.elementIds.ppValue);
+    const ppValueFormatted = document.getElementById('ppValueFormatted');
     
-    if (ppStartDate) {
-        ppStartDate.textContent = stateManager.getFormattedStartDate();
-    }
-    
-    if (ppValue) {
-        ppValue.textContent = '$' + stateManager.getPPValue().toLocaleString();
+    if (ppValueFormatted) {
+        // Get the simulation start date
+        const startDate = stateManager.get('simulationStartDate');
+        const year = startDate.getFullYear();
+        const monthIndex = startDate.getMonth();
+        const monthAbbr = CONFIG.display.monthNames[monthIndex].substring(0, 3); // First 3 letters
+        
+        // Get the PP value with comma formatting
+        const ppValue = stateManager.getPPValue().toLocaleString();
+        
+        // Format: $(YYYY-MMM)XX,XXX
+        ppValueFormatted.textContent = `$(${year}-${monthAbbr})${ppValue}`;
     }
 }
 
@@ -674,15 +680,34 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePauseButtonUI();
     updateInfoPanel();
     
+    // Start animation loop (for drop physics)
+    requestAnimationFrame(animate);
+    
+    // Only start simulation if not in start state
+    const isStartState = stateManager.get('isStartState');
+    if (!isStartState) {
+        startSimulation();
+    }
+});
+
+// ============================================================================
+// SIMULATION START
+// ============================================================================
+
+/**
+ * Start the simulation (create first drop and start timer)
+ * Called either on initialization (if not in start state) or when user exits start state
+ */
+function startSimulation() {
     // Create first savings drop
     createDrop();
     
     // Start interval timer for subsequent savings drops (every 1000ms)
     startSavingsDropTimer();
-    
-    // Start animation loop
-    requestAnimationFrame(animate);
-});
+}
+
+// Expose globally for HTML to call when exiting start state
+window.startSimulation = startSimulation;
 
 // ============================================================================
 // LEGACY COMPATIBILITY (for backwards compatibility)

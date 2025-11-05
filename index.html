@@ -6,11 +6,14 @@
     <title>Purchasing Power Pig</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="start-state">
     <!-- Banner image at top center -->
     <div class="banner-container scaled-element">
         <img src="ppp-banner.png" alt="Purchasing Power Pig Banner">
     </div>
+    
+    <!-- Start state overlay (50% black) -->
+    <div class="start-overlay" id="startOverlay"></div>
     
     <!-- Pig image container -->
     <div class="pig-container scaled-element">
@@ -71,9 +74,9 @@
 
         <!-- Savings display panel -->
         <div class="savings-display">
-            <div class="savings-label">Date: <span id="currentDateValue">2025 October</span></div>
+            <div class="savings-label">Month: <span id="currentDateValue">2025 October</span></div>
             <div class="savings-label">Savings: <span id="totalSavingsValue">$0</span></div>
-            <div class="savings-label">PP <span id="ppStartDate">2025-10</span>: <span id="ppValue">$0</span></div>
+            <div class="savings-label">PP: <span id="ppValueFormatted">$(2025-Oct)0</span></div>
             <div class="savings-label">PP Lost: <span id="totalBankValue">0%</span></div>
         </div>
 
@@ -178,13 +181,77 @@
             checkBalance();
         });
         
+        // Exit start state and begin simulation
+        function exitStartState() {
+            // Remove start-state class from body
+            document.body.classList.remove('start-state');
+            
+            // Hide overlay
+            const overlay = document.getElementById('startOverlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+            }
+            
+            // Update state manager
+            if (typeof window.stateManager !== 'undefined') {
+                window.stateManager.setState({ isStartState: false });
+            }
+            
+            // Update restart button text
+            const restartButton = document.getElementById('restartButton');
+            if (restartButton) {
+                restartButton.textContent = 'Restart';
+            }
+            
+            // Wait 500ms before starting simulation
+            setTimeout(() => {
+                // Start the simulation (create first drop and start timer)
+                if (typeof window.startSimulation === 'function') {
+                    window.startSimulation();
+                }
+            }, 500);
+        }
+        
+        // Update restart button text based on start state
+        function updateRestartButtonText() {
+            const restartButton = document.getElementById('restartButton');
+            if (restartButton && typeof window.stateManager !== 'undefined') {
+                const isStartState = window.stateManager.get('isStartState');
+                restartButton.textContent = isStartState ? 'Start' : 'Restart';
+            }
+        }
+        
         // Button event listeners
         document.getElementById('restartButton').addEventListener('click', () => {
-            if (typeof window.stateManager !== 'undefined') {
-                window.stateManager.reset();
-            } else if (typeof window.resetPigFill === 'function') {
-                // Fallback for backwards compatibility
-                window.resetPigFill();
+            // Check if in start state
+            const isStartState = typeof window.stateManager !== 'undefined' 
+                ? window.stateManager.get('isStartState') 
+                : false;
+            
+            if (isStartState) {
+                // Exit start state and begin simulation
+                exitStartState();
+            } else {
+                // Normal restart behavior
+                if (typeof window.stateManager !== 'undefined') {
+                    window.stateManager.reset();
+                } else if (typeof window.resetPigFill === 'function') {
+                    // Fallback for backwards compatibility
+                    window.resetPigFill();
+                }
+            }
+        });
+        
+        // Enter key listener for starting simulation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const isStartState = typeof window.stateManager !== 'undefined' 
+                    ? window.stateManager.get('isStartState') 
+                    : false;
+                
+                if (isStartState) {
+                    exitStartState();
+                }
             }
         });
         
@@ -269,6 +336,7 @@
         // Set initial state on page load (check if balanced)
         document.addEventListener('DOMContentLoaded', () => {
             checkBalance();
+            updateRestartButtonText();
         });
     </script>
     
