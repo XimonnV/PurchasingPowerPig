@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Math Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .test-details {
+            font-size: 0.9em;
+            margin-top: 5px;
+            font-family: monospace;
+        }
+        h1 {
+            color: #333;
+        }
+        .summary {
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Financial Math Unit Tests</h1>
+    <div class="summary" id="summary"></div>
+    <div id="test-results"></div>
+
+    <script>
+        // Financial calculation functions (corrected versions)
+        
+        function calculateBalancedStartAmount(monthlySavings, annualInflationPercent) {
+            const annualInflation = annualInflationPercent / 100;
+            
+            let calculatedAmount;
+            
+            if (annualInflation === 0) {
+                calculatedAmount = 100000;
+            } else {
+                // For compound interest: monthly rate = (1 + annual)^(1/12) - 1
+                const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
+                // Starting amount = monthly savings / monthly rate
+                calculatedAmount = monthlySavings / monthlyRate;
+                calculatedAmount = Math.round(calculatedAmount / 1000) * 1000;
+                calculatedAmount = Math.max(0, Math.min(100000, calculatedAmount));
+            }
+            
+            return calculatedAmount;
+        }
+        
+        function calculateBalancedSavings(startingAmount, annualInflationPercent) {
+            const annualInflation = annualInflationPercent / 100;
+            
+            // For compound interest: monthly rate = (1 + annual)^(1/12) - 1
+            const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
+            // Monthly savings = starting amount * monthly rate
+            let calculatedSavings = startingAmount * monthlyRate;
+            calculatedSavings = Math.round(calculatedSavings / 10) * 10;
+            calculatedSavings = Math.max(0, Math.min(1000, calculatedSavings));
+            
+            return calculatedSavings;
+        }
+        
+        function calculateBalancedInflation(startingAmount, monthlySavings) {
+            let calculatedInflation;
+            
+            if (startingAmount === 0) {
+                calculatedInflation = 7;
+            } else {
+                // For compound interest: monthly rate = monthly savings / starting amount
+                const monthlyRate = monthlySavings / startingAmount;
+                // Annual rate = (1 + monthly rate)^12 - 1
+                const annualRate = Math.pow(1 + monthlyRate, 12) - 1;
+                calculatedInflation = annualRate * 100;
+                calculatedInflation = Math.round(calculatedInflation * 10) / 10;
+                calculatedInflation = Math.max(5, Math.min(20, calculatedInflation));
+            }
+            
+            return calculatedInflation;
+        }
+
+        // Test framework
+        const tests = [];
+        let passCount = 0;
+        let failCount = 0;
+
+        function test(name, fn) {
+            tests.push({ name, fn });
+        }
+
+        function assertEquals(actual, expected, message = '') {
+            if (actual !== expected) {
+                throw new Error(`${message}\nExpected: ${expected}\nActual: ${actual}`);
+            }
+        }
+
+        function assertApproxEquals(actual, expected, tolerance = 0.001, message = '') {
+            if (Math.abs(actual - expected) > tolerance) {
+                throw new Error(`${message}\nExpected: ${expected} (±${tolerance})\nActual: ${actual}\nDifference: ${Math.abs(actual - expected)}`);
+            }
+        }
+
+        function assertTrue(condition, message = '') {
+            if (!condition) {
+                throw new Error(`Assertion failed: ${message}`);
+            }
+        }
+
+        // Test Cases
+
+        test('Calculate Balanced Starting Amount', () => {
+            // With $100 monthly savings and 7% annual inflation
+            const result = calculateBalancedStartAmount(100, 7);
+            // Expected: approximately $17,556 (rounds to $18,000)
+            assertEquals(result, 18000, 'Should calculate correct balanced starting amount');
+        });
+
+        test('Calculate Balanced Savings', () => {
+            // With $50,000 starting amount and 7% annual inflation
+            const result = calculateBalancedSavings(50000, 7);
+            // Monthly rate ≈ 0.565% → monthly savings ≈ $283
+            // Should round to $280 (nearest 10)
+            assertEquals(result, 280, 'Should calculate correct balanced monthly savings');
+        });
+
+        test('Calculate Balanced Inflation Rate (COMPOUND INTEREST)', () => {
+            // With $50,000 starting and $280 monthly savings
+            const result = calculateBalancedInflation(50000, 280);
+            // Monthly rate = 280/50000 = 0.0056 = 0.56%
+            // Annual rate = (1.0056)^12 - 1 ≈ 0.0693 = 6.93%
+            // Should round to 6.9%
+            assertApproxEquals(result, 6.9, 0.15, 'Should calculate compound inflation rate correctly');
+        });
+
+        test('Calculate Balanced Inflation - Clamps to Minimum', () => {
+            // With $50,000 starting and $100 monthly savings
+            const result = calculateBalancedInflation(50000, 100);
+            // Monthly rate = 100/50000 = 0.002 = 0.2%
+            // Annual rate = (1.002)^12 - 1 ≈ 0.02424 = 2.42%
+            // Would be 2.4%, but should clamp to minimum 5%
+            assertEquals(result, 5.0, 'Should clamp calculated inflation to minimum of 5%');
+        });
+
+        test('Balance State Detection (BALANCED)', () => {
+            // Start with known balanced values
+            const startAmount = 18000;
+            const inflation = 7.0;
+            const savings = 100;
+            
+            // Calculate what balanced values should be for each
+            const balancedStart = calculateBalancedStartAmount(savings, inflation);
+            const balancedSavings = calculateBalancedSavings(startAmount, inflation);
+            const balancedInflation = calculateBalancedInflation(startAmount, savings);
+            
+            // Check if at least one matches (within tolerance for rounding)
+            const startMatches = (startAmount === balancedStart);
+            const savingsMatches = (savings === balancedSavings);
+            const inflationMatches = Math.abs(inflation - balancedInflation) < 0.15; // Allow for rounding
+            
+            const isBalanced = startMatches || savingsMatches || inflationMatches;
+            
+            assertTrue(isBalanced, `System should detect balanced state.\nBalanced Start: ${balancedStart}\nBalanced Savings: ${balancedSavings}\nBalanced Inflation: ${balancedInflation}`);
+        });
+
+        test('Balance State Detection (UNBALANCED)', () => {
+            // Use clearly unbalanced values
+            const startAmount = 10000;
+            const inflation = 15.0;
+            const savings = 50;
+            
+            const balancedStart = calculateBalancedStartAmount(savings, inflation);
+            const balancedSavings = calculateBalancedSavings(startAmount, inflation);
+            const balancedInflation = calculateBalancedInflation(startAmount, savings);
+            
+            const startMatches = (startAmount === balancedStart);
+            const savingsMatches = (savings === balancedSavings);
+            const inflationMatches = Math.abs(inflation - balancedInflation) < 0.15;
+            
+            const isBalanced = startMatches || savingsMatches || inflationMatches;
+            
+            assertTrue(!isBalanced, 'System should detect unbalanced state');
+        });
+
+        test('Zero Inflation Edge Case', () => {
+            const result = calculateBalancedStartAmount(100, 0);
+            assertEquals(result, 100000, 'Should return max when inflation is 0');
+        });
+
+        test('Zero Starting Amount Edge Case', () => {
+            const result = calculateBalancedInflation(0, 100);
+            assertEquals(result, 7, 'Should return default 7% when starting amount is 0');
+        });
+
+        test('Boundary: Max Starting Amount', () => {
+            const result = calculateBalancedStartAmount(1000, 5);
+            assertTrue(result <= 100000, 'Should not exceed max starting amount');
+        });
+
+        test('Boundary: Max Savings', () => {
+            const result = calculateBalancedSavings(100000, 20);
+            assertTrue(result <= 1000, 'Should not exceed max monthly savings');
+        });
+
+        test('Boundary: Inflation Range', () => {
+            const result = calculateBalancedInflation(10000, 500);
+            assertTrue(result >= 5 && result <= 20, 'Should clamp inflation to 5-20% range');
+        });
+
+        test('Round Trip: Start → Savings → Inflation → Start', () => {
+            const originalStart = 50000;
+            const inflation = 7.0;
+            
+            // Calculate balanced savings for this start amount and inflation
+            const savings = calculateBalancedSavings(originalStart, inflation);
+            
+            // Calculate balanced inflation from start and savings
+            const calcInflation = calculateBalancedInflation(originalStart, savings);
+            
+            // Calculate balanced start from savings and calculated inflation
+            const calcStart = calculateBalancedStartAmount(savings, calcInflation);
+            
+            // The recalculated start should be close to original (within rounding tolerance)
+            assertApproxEquals(calcStart, originalStart, 2000, 'Round trip calculation should be consistent');
+        });
+
+        // Run all tests
+        function runTests() {
+            const resultsDiv = document.getElementById('test-results');
+            
+            tests.forEach(({ name, fn }) => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'test-result';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'test-name';
+                nameDiv.textContent = name;
+                resultDiv.appendChild(nameDiv);
+                
+                try {
+                    fn();
+                    resultDiv.classList.add('pass');
+                    const statusDiv = document.createElement('div');
+                    statusDiv.textContent = '✓ PASS';
+                    resultDiv.appendChild(statusDiv);
+                    passCount++;
+                } catch (error) {
+                    resultDiv.classList.add('fail');
+                    const statusDiv = document.createElement('div');
+                    statusDiv.textContent = '✗ FAIL';
+                    resultDiv.appendChild(statusDiv);
+                    
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.className = 'test-details';
+                    detailsDiv.textContent = error.message;
+                    resultDiv.appendChild(detailsDiv);
+                    failCount++;
+                }
+                
+                resultsDiv.appendChild(resultDiv);
+            });
+            
+            // Update summary
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.innerHTML = `
+                <strong>Test Results:</strong> ${passCount} passed, ${failCount} failed out of ${tests.length} total
+                ${failCount === 0 ? '<div style="color: green; margin-top: 10px;">✓ All tests passed!</div>' : ''}
+            `;
+        }
+
+        // Run tests when page loads
+        window.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

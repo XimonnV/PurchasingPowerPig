@@ -1,13 +1,22 @@
-// Animation state
-let fillLevel = 0; // 0 to 100 (percentage)
-let totalSavings = 0; // Total dollar amount saved
-let totalBankSavings = 0; // Total dollar amount lost to inflation (in banker's mug)
-let mugFillLevel = 0; // 0 to 100 (percentage) for banker's mug
-let drops = [];
-let lastDropTime = 0;
-const dropInterval = 1000; // 1 second
-let isPaused = false; // Pause state
-let currentSimDate = new Date(); // Current simulation date (year and month)
+/**
+ * Purchasing Power Pig - Animation Module
+ * 
+ * Handles animation rendering, drop physics, and visual updates.
+ * All state management delegated to state-manager.js
+ * All calculations delegated to financial-math.js
+ * All settings read from settingsCache (dom-cache.js)
+ * All constants from config.js
+ * 
+ * Dependencies (must be loaded in order):
+ * 1. config.js
+ * 2. financial-math.js
+ * 3. dom-cache.js
+ * 4. state-manager.js
+ */
+
+// ============================================================================
+// VIEWPORT AND SCALING
+// ============================================================================
 
 // Track previous window dimensions for smart height updates
 let previousWidth = window.innerWidth;
@@ -17,11 +26,9 @@ let previousHeight = window.innerHeight;
 let svhSupported = false;
 let heightProbe = null;
 
-// Month names for date display
-const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
-
-// Create a hidden probe element to detect svh support and get pixel value
+/**
+ * Create a hidden probe element to detect svh support and get pixel value
+ */
 function initializeHeightProbe() {
     heightProbe = document.createElement('div');
     heightProbe.style.cssText = 'position:fixed; top:-9999px; height:100svh; pointer-events:none;';
@@ -30,14 +37,18 @@ function initializeHeightProbe() {
     // Check if svh is supported
     const probeHeight = heightProbe.offsetHeight;
     svhSupported = probeHeight > 0 && probeHeight <= window.innerHeight;
+    
+    // Update state manager
+    stateManager.updateViewport({ svhSupported, heightProbe });
 }
 
-// Get stable height (svh if supported, else fallback to innerHeight with min-lock)
+/**
+ * Get stable height (svh if supported, else fallback to innerHeight with min-lock)
+ */
 function getStableHeight(currentInnerHeight) {
     if (svhSupported && heightProbe) {
         const probeHeight = heightProbe.offsetHeight;
         if (probeHeight > 0 && probeHeight <= window.innerHeight) {
-            // svh supported: Use stable small height (doesn't change with browser chrome)
             return probeHeight;
         }
     }
@@ -55,8 +66,10 @@ function getStableHeight(currentInnerHeight) {
     return stableHeight;
 }
 
-// Calculate and update window height based on actual available space
-// Returns the constrained height value
+/**
+ * Calculate and update window height based on actual available space
+ * Returns the constrained height value
+ */
 function updateWindowHeight() {
     const currentHeight = window.innerHeight;
     const stableHeight = getStableHeight(currentHeight);
@@ -67,47 +80,60 @@ function updateWindowHeight() {
     previousWidth = window.innerWidth;
     previousHeight = currentHeight;
     
+    // Update state manager
+    stateManager.updateViewport({ 
+        previousWidth, 
+        previousHeight 
+    });
+    
     return stableHeight;
 }
 
-// Calculate and apply responsive scale based on viewport height
-// Accepts optional height parameter (uses window.innerHeight if not provided)
+/**
+ * Calculate and apply responsive scale based on viewport height
+ */
 function calculateAndApplyScale(height) {
-    const baseHeight = 1080; // Base design height
     const viewportHeight = height !== undefined ? height : window.innerHeight;
     
-    // Calculate scale: clamp between (640/1080 = 0.593) and 1.0
-    let scale = viewportHeight / baseHeight;
-    scale = Math.max(0.593, Math.min(1.0, scale));
+    // Calculate scale: clamp between minScale and maxScale from CONFIG
+    let scale = viewportHeight / CONFIG.layout.baseHeight;
+    scale = Math.max(CONFIG.layout.minScale, Math.min(CONFIG.layout.maxScale, scale));
     
     // Apply scale to CSS variable
     document.documentElement.style.setProperty('--scale', scale);
+    
+    // Update state manager
+    stateManager.updateViewport({ scale });
 }
 
-// Detect mobile portrait mode and adjust panel positions
+/**
+ * Detect mobile portrait mode and adjust panel positions
+ */
 function adjustForMobile() {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const isMobilePortrait = (height / width) > 1.5;
+    const isMobilePortrait = (height / width) > CONFIG.layout.mobilePortraitRatio;
     
     const body = document.body;
     
     if (isMobilePortrait) {
-        // Apply mobile mode class - CSS handles positioning from bottom
-        body.classList.add('mobile-mode');
+        body.classList.add(CONFIG.cssClasses.mobileMode);
     } else {
-        // Desktop mode
-        body.classList.remove('mobile-mode');
+        body.classList.remove(CONFIG.cssClasses.mobileMode);
     }
 }
 
-// Show scaled elements after scale is applied
+/**
+ * Show scaled elements after scale is applied
+ */
 function showScaledElements() {
-    const elements = document.querySelectorAll('.scaled-element');
-    elements.forEach(el => el.classList.add('ready'));
+    const elements = document.querySelectorAll(CONFIG.selectors.scaledElements);
+    elements.forEach(el => el.classList.add(CONFIG.cssClasses.ready));
 }
 
-// Debounce function to limit resize event frequency
+/**
+ * Debounce function to limit resize event frequency
+ */
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -120,88 +146,41 @@ function debounce(func, wait) {
     };
 }
 
-// Initialize height probe early
-initializeHeightProbe();
+// ============================================================================
+// DROP CLASS
+// ============================================================================
 
-// Apply scale immediately when script loads (before DOM is ready)
-const initialHeight = updateWindowHeight();
-calculateAndApplyScale(initialHeight);
-adjustForMobile();
-
-// Listen for window resize with debouncing
-const debouncedResize = debounce(() => {
-    const currentWidth = window.innerWidth;
-    const currentHeight = window.innerHeight;
-    const isMobilePortrait = (currentHeight / currentWidth) > 1.5;
-    const widthChanged = currentWidth !== previousWidth;
-    
-    // Update constrained height
-    const constrainedHeight = updateWindowHeight();
-    
-    // If svh is supported, always update scale (svh handles stability)
-    // If not supported, only update scale on width change (rotation) in mobile mode
-    if (svhSupported || !isMobilePortrait || widthChanged) {
-        calculateAndApplyScale(constrainedHeight);
-    }
-    
-    adjustForMobile();
-}, 150);
-
-window.addEventListener('resize', debouncedResize);
-
-// Get slider values
-function getMonthlySavings() {
-    const slider = document.getElementById('savings');
-    return slider ? parseInt(slider.value) : 0;
-}
-
-function getStartingAmount() {
-    const slider = document.getElementById('startAmount');
-    return slider ? parseInt(slider.value) : 50000;
-}
-
-function getAnnualInflation() {
-    const slider = document.getElementById('inflation');
-    return slider ? parseFloat(slider.value) / 100 : 0.07;
-}
-
-function getMonthlyInflationRate() {
-    const annualRate = getAnnualInflation();
-    return Math.pow(1 + annualRate, 1/12) - 1;
-}
-
-// Get the current scale factor from CSS
+/**
+ * Get the current scale factor from CSS
+ */
 function getScaleFactor() {
     const scale = getComputedStyle(document.documentElement).getPropertyValue('--scale').trim();
     return parseFloat(scale) || 1;
 }
 
-// Drop class
+/**
+ * Drop class - represents a falling money drop
+ */
 class Drop {
-    constructor(startX, startY, size, target = 'pig', isInvisible = false) {
+    constructor(startX, startY, size, target = 'pig') {
         this.x = startX;
         this.y = startY;
         this.size = size;
         // Scale falling speed based on viewport scale
         const scaleFactor = getScaleFactor();
-        this.speed = (3 + Math.random() * 2) * scaleFactor; // Falling speed scaled
+        this.speed = (CONFIG.drop.minSpeed + Math.random() * CONFIG.drop.maxSpeedVariation) * scaleFactor;
         this.target = target; // 'pig' or 'mug'
         this.dollarAmount = 0; // Will be set externally
-        this.isInvisible = isInvisible; // For $0 savings drops
-        this.onLandCallback = null; // Callback when drop lands
         this.element = this.createElement();
     }
 
     createElement() {
         const drop = document.createElement('div');
-        drop.className = 'money-drop';
+        drop.className = CONFIG.cssClasses.moneyDrop;
         drop.style.left = this.x + 'px';
         drop.style.top = this.y + 'px';
         drop.style.width = this.size + 'px';
         drop.style.height = (this.size * 1.5) + 'px';
-        if (this.isInvisible) {
-            drop.style.opacity = '0'; // Make invisible
-        }
         document.body.appendChild(drop);
         return drop;
     }
@@ -211,176 +190,237 @@ class Drop {
         this.element.style.top = this.y + 'px';
 
         if (this.target === 'pig') {
-            // Check if drop reached the oval container
-            const oval = document.querySelector('.pig-oval-container');
-            if (!oval) return true;
-
-            const ovalRect = oval.getBoundingClientRect();
-            
-            // Calculate current fill level position in oval (use actual oval height)
-            const fillHeight = (fillLevel / 100) * ovalRect.height;
-            const waterSurfaceY = ovalRect.bottom - fillHeight;
-
-            // Check if drop hits the water surface (or bottom of empty container)
-            const targetY = fillLevel > 0 ? waterSurfaceY : ovalRect.bottom - 5;
-
-            if (this.y >= targetY - this.size / 2) {
-                // Add monthly savings to total (only if not invisible)
-                if (!this.isInvisible) {
-                    const monthlySavings = getMonthlySavings();
-                    totalSavings += monthlySavings;
-                    updateSavingsDisplay();
-                    
-                    // Add to fill level if not full (based on dollar amount)
-                    if (fillLevel < 100) {
-                        const dropVolume = monthlySavings / 1000; // $100,000 total to fill
-                        fillLevel = Math.min(100, fillLevel + dropVolume);
-                        updateFillDisplay();
-                    }
-                }
-                
-                // Create ripple effect on impact
-                createRipple('pig');
-                
-                // Trigger callback if set (for inflation trigger)
-                if (this.onLandCallback) {
-                    this.onLandCallback();
-                }
-                
-                // Remove drop
-                this.element.remove();
-                return false;
-            }
+            return this.updatePigTarget();
         } else if (this.target === 'mug') {
-            // Check if drop reached the banker's mug
-            const mug = document.querySelector('.banker-mug-container');
-            if (!mug) return true;
-
-            const mugRect = mug.getBoundingClientRect();
-            
-            // Calculate current fill level position in mug (use actual mug height)
-            const fillHeight = (mugFillLevel / 100) * mugRect.height;
-            const waterSurfaceY = mugRect.bottom - fillHeight;
-
-            // Check if drop hits the water surface (or bottom of empty container)
-            const targetY = mugFillLevel > 0 ? waterSurfaceY : mugRect.bottom - 5;
-
-            if (this.y >= targetY - this.size / 2) {
-                // Add inflation loss to bank total
-                totalBankSavings += this.dollarAmount;
-                updateSavingsDisplay();
-                
-                // Add to mug fill level if not full
-                if (mugFillLevel < 100) {
-                    const dropVolume = this.dollarAmount / 700; // $70,000 total to fill mug
-                    mugFillLevel = Math.min(100, mugFillLevel + dropVolume);
-                    updateMugFillDisplay();
-                }
-                
-                // Create ripple effect on impact
-                createRipple('mug');
-                
-                // Remove drop
-                this.element.remove();
-                return false;
-            }
+            return this.updateMugTarget();
         }
+        
+        return true;
+    }
+    
+    updatePigTarget() {
+        // Check if drop reached the oval container
+        const oval = document.querySelector(CONFIG.selectors.pigOvalContainer);
+        if (!oval) return true;
 
+        const ovalRect = oval.getBoundingClientRect();
+        const fillLevel = stateManager.get('fillLevel');
+        
+        // Calculate current fill level position in oval
+        const fillHeight = (fillLevel / 100) * ovalRect.height;
+        const waterSurfaceY = ovalRect.bottom - fillHeight;
+
+        // Check if drop hits the water surface (or bottom of empty container)
+        const targetY = fillLevel > 0 ? waterSurfaceY : ovalRect.bottom - CONFIG.collision.emptyContainerOffset;
+
+        if (this.y >= targetY - this.size / 2) {
+            // Add monthly savings using state manager
+            stateManager.addMonthlySavingsToPig();
+            
+            // Create ripple effect
+            createRipple(oval, CONFIG.cssClasses.pigRipple);
+            
+            // Remove drop
+            this.element.remove();
+            return false;
+        }
+        
+        return true;
+    }
+    
+    updateMugTarget() {
+        // Check if drop reached the banker's mug
+        const mug = document.querySelector(CONFIG.selectors.bankerMugContainer);
+        if (!mug) return true;
+
+        const mugRect = mug.getBoundingClientRect();
+        const mugFillLevel = stateManager.get('mugFillLevel');
+        
+        // Calculate current fill level position in mug
+        const fillHeight = (mugFillLevel / 100) * mugRect.height;
+        const waterSurfaceY = mugRect.bottom - fillHeight;
+
+        // Check if drop hits the water surface (or bottom of empty container)
+        const targetY = mugFillLevel > 0 ? waterSurfaceY : mugRect.bottom - CONFIG.collision.emptyContainerOffset;
+
+        if (this.y >= targetY - this.size / 2) {
+            // Add inflation loss to mug using state manager
+            stateManager.addInflationLossToMug(this.dollarAmount);
+            
+            // Create ripple effect
+            createRipple(mug, CONFIG.cssClasses.mugRipple);
+            
+            // Remove drop
+            this.element.remove();
+            return false;
+        }
+        
         return true;
     }
 }
 
-// Update the visual fill level
+// ============================================================================
+// VISUAL EFFECTS
+// ============================================================================
+
+/**
+ * Create a ripple effect on liquid surface
+ * @param {HTMLElement} container - Container element for the ripple
+ * @param {string} rippleClass - CSS class for ripple styling
+ */
+function createRipple(container, rippleClass) {
+    const ripple = document.createElement('div');
+    ripple.className = `${CONFIG.cssClasses.ripple} ${rippleClass}`;
+    container.querySelector('.pig-oval-fill, .banker-mug-fill').appendChild(ripple);
+    
+    // Remove ripple after animation completes
+    setTimeout(() => {
+        ripple.remove();
+    }, CONFIG.RIPPLE_DURATION_MS);
+}
+
+// ============================================================================
+// DISPLAY UPDATES
+// ============================================================================
+
+/**
+ * Update the visual fill level for pig
+ */
 function updateFillDisplay() {
-    const fillElement = document.querySelector('.pig-oval-fill');
+    const fillElement = document.querySelector(CONFIG.selectors.pigOvalFill);
+    const fillLevel = stateManager.get('fillLevel');
+    
     if (fillElement) {
         fillElement.style.height = fillLevel + '%';
     }
     
-    // Update percentage display on pig
-    const pigPercentage = document.getElementById('pigPercentageDisplay');
-    if (pigPercentage) {
-        pigPercentage.textContent = Math.round(fillLevel) + '%';
-        // Only show when fill level > 0
-        if (fillLevel > 0) {
-            pigPercentage.style.display = 'block';
-        } else {
-            pigPercentage.style.display = 'none';
-        }
+    // Update pig percentage display
+    const percentDisplay = document.getElementById(CONFIG.elementIds.pigPercentageDisplay);
+    if (percentDisplay) {
+        percentDisplay.textContent = Math.round(fillLevel) + '%';
+        percentDisplay.style.display = fillLevel > 0 ? 'block' : 'none';
     }
     
-    // Update debug display for pig fill (if it exists)
-    const debugValue = document.getElementById('debugFillValue');
+    // Update debug display if visible
+    const debugValue = document.getElementById(CONFIG.elementIds.debugFillValue);
     if (debugValue) {
-        debugValue.textContent = fillLevel.toFixed(2);
+        debugValue.textContent = fillLevel.toFixed(CONFIG.display.debugDecimalPlaces);
     }
 }
 
-// Update the mug fill level
+/**
+ * Update the mug fill level
+ */
 function updateMugFillDisplay() {
-    const fillElement = document.querySelector('.banker-mug-fill');
+    const fillElement = document.querySelector(CONFIG.selectors.bankerMugFill);
+    const mugFillLevel = stateManager.get('mugFillLevel');
+    
     if (fillElement) {
         fillElement.style.height = mugFillLevel + '%';
     }
     
-    // Update debug display for mug fill
-    const debugMugValue = document.getElementById('debugMugValue');
+    // Update debug display
+    const debugMugValue = document.getElementById(CONFIG.elementIds.debugMugValue);
     if (debugMugValue) {
-        debugMugValue.textContent = mugFillLevel.toFixed(2);
+        debugMugValue.textContent = mugFillLevel.toFixed(CONFIG.display.debugDecimalPlaces);
     }
 }
 
-// Update the savings amount display
+/**
+ * Update the savings amount display
+ */
 function updateSavingsDisplay() {
-    const savingsValue = document.getElementById('totalSavingsValue');
+    const totalSavings = stateManager.get('totalSavings');
+    const totalBankSavings = stateManager.get('totalBankSavings');
+    
+    const savingsValue = document.getElementById(CONFIG.elementIds.totalSavingsValue);
     if (savingsValue) {
         savingsValue.textContent = '$' + totalSavings.toLocaleString();
     }
     
-    const bankValue = document.getElementById('totalBankValue');
+    const bankValue = document.getElementById(CONFIG.elementIds.totalBankValue);
     if (bankValue) {
-        // Calculate percentage: (totalBankSavings / totalSavings) * 100, rounded to whole number
-        const percentage = totalSavings > 0 ? Math.round((totalBankSavings / totalSavings) * 100) : 0;
+        const percentage = stateManager.getPurchasingPowerLostPercentage();
         bankValue.textContent = percentage + '%';
     }
     
-    // Update debug display with bank dollar amount
-    const debugBankDollars = document.getElementById('debugBankDollars');
+    // Update debug display
+    const debugBankDollars = document.getElementById(CONFIG.elementIds.debugBankDollars);
     if (debugBankDollars) {
         debugBankDollars.textContent = '$' + totalBankSavings.toLocaleString();
     }
 }
 
-// Update the date display
+/**
+ * Update the date display
+ */
 function updateDateDisplay() {
-    const dateValue = document.getElementById('currentDateValue');
+    const dateValue = document.getElementById(CONFIG.elementIds.currentDateValue);
     if (dateValue) {
-        const year = currentSimDate.getFullYear();
-        const month = monthNames[currentSimDate.getMonth()];
-        dateValue.textContent = year + ' ' + month;
+        dateValue.textContent = stateManager.getFormattedDate();
     }
 }
 
-// Update the info panel with the baseline date
+/**
+ * Update the PP (Purchasing Power) display
+ */
+function updatePPDisplay() {
+    const ppStartDate = document.getElementById(CONFIG.elementIds.ppStartDate);
+    const ppValue = document.getElementById(CONFIG.elementIds.ppValue);
+    
+    if (ppStartDate) {
+        ppStartDate.textContent = stateManager.getFormattedStartDate();
+    }
+    
+    if (ppValue) {
+        ppValue.textContent = '$' + stateManager.getPPValue().toLocaleString();
+    }
+}
+
+/**
+ * Update the pause button UI based on current pause state
+ */
+function updatePauseButtonUI() {
+    const isPaused = stateManager.get('isPaused');
+    const pauseButton = document.getElementById(CONFIG.elementIds.pauseButton);
+    
+    if (pauseButton) {
+        if (isPaused) {
+            pauseButton.textContent = CONFIG.buttonText.resume;
+            pauseButton.classList.add(CONFIG.cssClasses.paused);
+        } else {
+            pauseButton.textContent = CONFIG.buttonText.pause;
+            pauseButton.classList.remove(CONFIG.cssClasses.paused);
+        }
+    }
+}
+
+/**
+ * Update the info panel with the baseline date
+ */
 function updateInfoPanel() {
-    const infoText = document.querySelector('.info-text');
+    const infoText = document.querySelector(CONFIG.selectors.infoText);
     if (infoText) {
         const now = new Date();
         const year = now.getFullYear();
-        const month = monthNames[now.getMonth()];
-        infoText.textContent = `A full pig equals the purchasing power of $100K at ${year} ${month}`;
+        const month = CONFIG.display.monthNames[now.getMonth()];
+        infoText.textContent = `A full pig equals the purchasing power of $${CONFIG.PIG_CAPACITY_DOLLARS.toLocaleString()} at ${year} ${month}`;
     }
 }
 
-// Calculate drop size based on dollar amount
+// ============================================================================
+// DROP CREATION
+// ============================================================================
+
+/**
+ * Calculate drop size based on dollar amount
+ */
 function calculateDropSize(amount) {
-    // $1-$100: scales from 1.1px to 11px
-    // $100-$1000: scales from 11px to 20px
     let size;
-    if (amount <= 100) {
-        size = 1 + amount * 0.1; // Linear scaling for small amounts
+    if (amount <= CONFIG.drop.smallAmountThreshold) {
+        size = CONFIG.drop.smallAmountBase + amount * CONFIG.drop.smallAmountScale;
     } else {
-        size = 11 + (amount - 100) * 0.01; // Slower scaling for larger amounts
+        size = CONFIG.drop.largeAmountBase + (amount - CONFIG.drop.largeAmountOffset) * CONFIG.drop.largeAmountScale;
     }
     
     // Apply viewport scale factor
@@ -388,186 +428,250 @@ function calculateDropSize(amount) {
     return size * scaleFactor;
 }
 
-// Initialize fill level and savings based on starting amount
-function initializeFromStartingAmount() {
-    const startingAmount = getStartingAmount();
-    totalSavings = startingAmount;
-    totalBankSavings = 0;
-    fillLevel = (startingAmount / 100000) * 100; // $100,000 total to fill pig
-    mugFillLevel = 0;
-    currentSimDate = new Date(); // Reset to current date
-    updateFillDisplay();
-    updateMugFillDisplay();
-    updateSavingsDisplay();
-    updateDateDisplay();
-    updateInfoPanel();
-}
-
-// Create a new drop
+/**
+ * Create a new savings drop
+ */
 function createDrop() {
-    const savings = getMonthlySavings();
+    const savings = stateManager.getMonthlySavings();
     
+    // Create invisible drop if savings is 0
+    const size = savings === 0 ? CONFIG.drop.invisibleDropSize : calculateDropSize(savings);
+
     // Get pig and oval position
-    const oval = document.querySelector('.pig-oval-container');
-    if (!oval) return null;
-
-    const ovalRect = oval.getBoundingClientRect();
-    
-    // Determine if drop should be invisible
-    const isInvisible = savings === 0;
-    
-    // Calculate drop size (use small size for invisible drops)
-    const size = isInvisible ? 5 * getScaleFactor() : calculateDropSize(savings);
-    
-    const dropX = ovalRect.left + ovalRect.width / 2 - size / 2;
-    const dropY = 0;
-
-    const drop = new Drop(dropX, dropY, size, 'pig', isInvisible);
-    
-    // Set callback to trigger inflation 500ms after landing
-    drop.onLandCallback = () => {
-        setTimeout(() => {
-            // Only proceed if not paused
-            if (!isPaused) {
-                const monthlyInflation = getMonthlyInflationRate();
-                const inflationReduction = fillLevel * monthlyInflation; // percentage points lost
-                const inflationDollars = (inflationReduction / 100) * 100000; // convert to dollars based on $100K
-                
-                fillLevel = fillLevel * (1 - monthlyInflation);
-                updateFillDisplay();
-                
-                // Create inflation drop if there's a reduction
-                if (inflationDollars > 0) {
-                    createInflationDrop(inflationDollars);
-                }
-            }
-        }, 500);
-    };
-    
-    drops.push(drop);
-    return drop;
-}
-
-// Create an inflation drop (falls from pig to banker's mug)
-function createInflationDrop(dollarAmount) {
-    if (dollarAmount <= 0) return;
-
-    // Calculate drop size using helper function
-    const size = calculateDropSize(dollarAmount);
-
-    // Get pig oval position - drop starts from bottom
-    const oval = document.querySelector('.pig-oval-container');
+    const oval = document.querySelector(CONFIG.selectors.pigOvalContainer);
     if (!oval) return;
 
     const ovalRect = oval.getBoundingClientRect();
     const dropX = ovalRect.left + ovalRect.width / 2 - size / 2;
-    const dropY = ovalRect.bottom; // Start from bottom of oval
+    const dropY = 0;
+
+    const drop = new Drop(dropX, dropY, size, 'pig');
+    stateManager.addDrop(drop);
+}
+
+/**
+ * Create an inflation drop (falls from pig to banker's mug)
+ */
+function createInflationDrop(dollarAmount) {
+    if (dollarAmount <= 0) return;
+
+    // Calculate drop size
+    const size = calculateDropSize(dollarAmount);
+
+    // Get pig oval position - drop starts from bottom
+    const oval = document.querySelector(CONFIG.selectors.pigOvalContainer);
+    if (!oval) return;
+
+    const ovalRect = oval.getBoundingClientRect();
+    const dropX = ovalRect.left + ovalRect.width / 2 - size / 2;
+    const dropY = ovalRect.bottom;
 
     const drop = new Drop(dropX, dropY, size, 'mug');
     drop.dollarAmount = dollarAmount;
-    drops.push(drop);
+    stateManager.addDrop(drop);
 }
 
-// Create a ripple effect on the liquid surface
-function createRipple(target) {
-    let fillElement;
-    let containerClass;
-    
-    if (target === 'pig') {
-        fillElement = document.querySelector('.pig-oval-fill');
-        containerClass = 'pig-ripple';
-    } else if (target === 'mug') {
-        fillElement = document.querySelector('.banker-mug-fill');
-        containerClass = 'mug-ripple';
-    }
-    
-    if (!fillElement) return;
-    
-    // Create ripple element
-    const ripple = document.createElement('div');
-    ripple.className = `ripple ${containerClass}`;
-    fillElement.appendChild(ripple);
-    
-    // Remove ripple after animation completes (750ms)
-    setTimeout(() => {
-        ripple.remove();
-    }, 750);
-}
+// ============================================================================
+// ANIMATION LOOP
+// ============================================================================
 
-// Animation loop
+/**
+ * Main animation loop
+ */
 function animate(timestamp) {
+    const isPaused = stateManager.get('isPaused');
+    const lastDropTime = stateManager.get('lastDropTime');
+    
     // Skip updates if paused
     if (!isPaused) {
-        // Create drops every second (1 month interval)
-        if (timestamp - lastDropTime >= dropInterval) {
-            // Create the savings drop (or invisible drop if savings is $0)
-            // The drop's callback will trigger inflation 500ms after it lands
+        // Create drops every DROP_INTERVAL_MS (1 month interval)
+        if (timestamp - lastDropTime >= CONFIG.DROP_INTERVAL_MS) {
+            // First apply monthly inflation to reduce fillLevel
+            const inflationDollars = stateManager.applyMonthlyInflation();
+            
+            // Update visual display
+            updateFillDisplay();
+            
+            // Create inflation drop if there's a reduction
+            if (inflationDollars > 0) {
+                // Small delay before inflation drop appears
+                setTimeout(() => {
+                    createInflationDrop(inflationDollars);
+                }, CONFIG.INFLATION_DELAY_MS);
+            }
+            
+            // Then create the savings drop
             createDrop();
             
-            // Increment the simulation date by one month
-            currentSimDate.setMonth(currentSimDate.getMonth() + 1);
+            // Advance simulation date
+            stateManager.advanceMonth();
             updateDateDisplay();
             
-            lastDropTime = timestamp;
+            // Update last drop time
+            stateManager.updateLastDropTime(timestamp);
         }
 
-        // Update all drops
-        drops = drops.filter(drop => drop.update());
+        // Update all drops and filter out completed ones
+        const drops = stateManager.get('drops');
+        const activeDrops = drops.filter(drop => drop.update());
+        
+        // Only update state if drops changed
+        if (activeDrops.length !== drops.length) {
+            stateManager.setState({ drops: activeDrops });
+        }
     }
 
     requestAnimationFrame(animate);
 }
 
+// ============================================================================
+// STATE CHANGE SUBSCRIPTIONS
+// ============================================================================
+
+/**
+ * Subscribe to state changes for automatic display updates
+ */
+function setupStateSubscriptions() {
+    // Update fill display when fillLevel changes
+    stateManager.subscribe('fillLevel', () => {
+        updateFillDisplay();
+        updatePPDisplay(); // PP value depends on fillLevel
+    });
+    
+    // Update mug display when mugFillLevel changes
+    stateManager.subscribe('mugFillLevel', () => {
+        updateMugFillDisplay();
+    });
+    
+    // Update savings display when totalSavings or totalBankSavings changes
+    stateManager.subscribe('totalSavings', () => {
+        updateSavingsDisplay();
+    });
+    
+    stateManager.subscribe('totalBankSavings', () => {
+        updateSavingsDisplay();
+    });
+    
+    // Update date display when currentSimDate changes
+    stateManager.subscribe('currentSimDate', () => {
+        updateDateDisplay();
+    });
+    
+    // Update PP display when simulationStartDate changes
+    stateManager.subscribe('simulationStartDate', () => {
+        updatePPDisplay();
+    });
+    
+    // Update pause button UI when isPaused changes
+    stateManager.subscribe('isPaused', () => {
+        updatePauseButtonUI();
+    });
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+// Initialize height probe early (before DOM ready)
+initializeHeightProbe();
+
+// Apply scale immediately when script loads
+const initialHeight = updateWindowHeight();
+calculateAndApplyScale(initialHeight);
+adjustForMobile();
+
+// Listen for window resize with debouncing
+const debouncedResize = debounce(() => {
+    const currentWidth = window.innerWidth;
+    const currentHeight = window.innerHeight;
+    const isMobilePortrait = (currentHeight / currentWidth) > CONFIG.layout.mobilePortraitRatio;
+    const widthChanged = currentWidth !== previousWidth;
+    
+    // Update constrained height
+    const constrainedHeight = updateWindowHeight();
+    
+    // Update scale based on svh support and orientation
+    if (svhSupported || !isMobilePortrait || widthChanged) {
+        calculateAndApplyScale(constrainedHeight);
+    }
+    
+    adjustForMobile();
+}, CONFIG.RESIZE_DEBOUNCE_MS);
+
+window.addEventListener('resize', debouncedResize);
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Ensure height probe is initialized (should already be done, but safety check)
+    // Ensure height probe is initialized
     if (!heightProbe) {
         initializeHeightProbe();
     }
     
-    // Redundant calls for safety in case DOM loads before the script executes
+    // Ensure SettingsCache is initialized
+    if (window.settingsCache && !window.settingsCache.initialized) {
+        window.settingsCache.initialize();
+    }
+    
+    // Apply scale and mobile adjustments
     const constrainedHeight = updateWindowHeight();
     calculateAndApplyScale(constrainedHeight);
-    
-    // Ensure mobile adjustments are applied
     adjustForMobile();
     
-    // Show scaled elements now that everything is ready
+    // Show scaled elements
     showScaledElements();
     
-    // Initialize fill and savings from starting amount
-    initializeFromStartingAmount();
+    // Setup state change subscriptions for automatic display updates
+    setupStateSubscriptions();
     
-    // Start animation
+    // Initialize state from starting amount
+    stateManager.initializeFromStartingAmount();
+    
+    // Update all displays
+    updateFillDisplay();
+    updateMugFillDisplay();
+    updateSavingsDisplay();
+    updateDateDisplay();
+    updatePPDisplay();
+    updatePauseButtonUI();
+    updateInfoPanel();
+    
+    // Start animation loop
     requestAnimationFrame(animate);
 });
 
-// Reset function (can be called from outside)
+// ============================================================================
+// LEGACY COMPATIBILITY (for backwards compatibility)
+// ============================================================================
+
+/**
+ * Legacy reset function (delegates to state manager)
+ */
 function resetPigFill() {
-    drops.forEach(drop => drop.element.remove());
-    drops = [];
-    initializeFromStartingAmount();
+    stateManager.reset();
 }
 
-// Toggle pause function
+/**
+ * Legacy initialize function (delegates to state manager)
+ */
+function initializeFromStartingAmount() {
+    stateManager.initializeFromStartingAmount();
+}
+
+/**
+ * Legacy toggle pause function (delegates to state manager)
+ */
 function togglePause() {
-    isPaused = !isPaused;
+    const isPaused = stateManager.togglePause();
     
-    const pauseButton = document.getElementById('pauseButton');
-    if (pauseButton) {
-        if (isPaused) {
-            pauseButton.textContent = 'Resume';
-            pauseButton.classList.add('paused');
-        } else {
-            pauseButton.textContent = 'Pause';
-            pauseButton.classList.remove('paused');
-            // Reset lastDropTime to current time to prevent burst of drops
-            lastDropTime = performance.now();
-        }
+    // Reset lastDropTime to prevent burst of drops on resume
+    if (!isPaused) {
+        stateManager.updateLastDropTime(performance.now());
     }
+    
+    // UI update happens automatically via isPaused subscription
 }
 
-// Expose functions globally
+// Expose legacy functions globally for backwards compatibility
 window.resetPigFill = resetPigFill;
 window.initializeFromStartingAmount = initializeFromStartingAmount;
 window.togglePause = togglePause;

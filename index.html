@@ -32,12 +32,20 @@
         <div class="pig-oval-fill"></div>
     </div>
     
-    <!-- Percentage display centered on pig - positioned as sibling for proper z-index layering -->
-    <div id="pigPercentageDisplay" class="pig-percentage scaled-element">0%</div>
+    <!-- Percentage display centered on pig -->
+    <div class="pig-percentage scaled-element" id="pigPercentageDisplay">0%</div>
     
     <!-- Panel container for right-side panels with automatic spacing -->
     <div class="panel-container">
         <div class="controls">
+            <div class="control-group">
+                <label>Monthly Savings: $<span id="savingsValue">100</span></label>
+                <div class="slider-row">
+                    <input type="range" id="savings" min="0" max="1000" value="100" step="10">
+                    <button id="balanceSavings" class="balance-button" aria-label="Balance"></button>
+                </div>
+            </div>
+            
             <div class="control-group">
                 <label>Starting Amount: $<span id="startAmountValue">50000</span></label>
                 <div class="slider-row">
@@ -56,14 +64,6 @@
             </div>
             
             <div class="control-group">
-                <label>Monthly Savings: $<span id="savingsValue">100</span></label>
-                <div class="slider-row">
-                    <input type="range" id="savings" min="0" max="1000" value="100" step="10">
-                    <button id="balanceSavings" class="balance-button" aria-label="Balance"></button>
-                </div>
-            </div>
-            
-            <div class="control-group">
                 <button id="restartButton">Restart</button>
                 <button id="pauseButton">Pause</button>
             </div>
@@ -71,9 +71,10 @@
 
         <!-- Savings display panel -->
         <div class="savings-display">
-            <div class="savings-label">Savings: <span id="totalSavingsValue">$0</span></div>
-            <div class="savings-label">PP Lost: <span id="totalBankValue">0%</span></div>
             <div class="savings-label">Date: <span id="currentDateValue">2025 October</span></div>
+            <div class="savings-label">Savings: <span id="totalSavingsValue">$0</span></div>
+            <div class="savings-label">PP <span id="ppStartDate">2025-10</span>: <span id="ppValue">$0</span></div>
+            <div class="savings-label">PP Lost: <span id="totalBankValue">0%</span></div>
         </div>
 
         <!-- Info panel -->
@@ -82,72 +83,30 @@
         </div>
     </div>
 
+    <!-- Debug display (hidden by default - remove style="display:none" to show) -->
+    <div class="debug-display" style="display: none;">
+        Pig: <span id="debugFillValue">0.00</span>%<br>
+        Mug: <span id="debugMugValue">0.00</span>%<br>
+        Bank $: <span id="debugBankDollars">$0</span>
+    </div>
+
+    <!-- Load JavaScript modules in dependency order -->
+    <!-- 1. CONFIG - must load first -->
+    <script src="config.js"></script>
+    
+    <!-- 2. Financial Math - uses CONFIG -->
+    <script src="financial-math.js"></script>
+    
+    <!-- 3. DOM Cache - uses CONFIG -->
+    <script src="dom-cache.js"></script>
+    
+    <!-- 4. State Manager - uses CONFIG, settingsCache, and financial-math functions -->
+    <script src="state-manager.js"></script>
+    
+    <!-- 5. UI Control Logic (inline) -->
     <script>
-        // Calculate balanced starting amount (rounds to nearest 1000)
-        function calculateBalancedStartAmount(monthlySavings, annualInflationPercent) {
-            const annualInflation = annualInflationPercent / 100;
-            
-            let calculatedAmount;
-            
-            // Handle division by zero (set to max if inflation is 0)
-            if (annualInflation === 0) {
-                calculatedAmount = 100000;
-            } else {
-                // Calculate monthly compound rate: (1 + annual)^(1/12) - 1
-                const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
-                // For balance: monthly savings = starting amount * monthly rate
-                // Therefore: starting amount = monthly savings / monthly rate
-                calculatedAmount = monthlySavings / monthlyRate;
-                // Round to nearest 1000 (slider step)
-                calculatedAmount = Math.round(calculatedAmount / 1000) * 1000;
-                // Clamp to min/max range
-                calculatedAmount = Math.max(0, Math.min(100000, calculatedAmount));
-            }
-            
-            return calculatedAmount;
-        }
-        
-        // Calculate balanced monthly savings (rounds to nearest 10)
-        function calculateBalancedSavings(startingAmount, annualInflationPercent) {
-            const annualInflation = annualInflationPercent / 100;
-            
-            // Calculate monthly compound rate: (1 + annual)^(1/12) - 1
-            const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
-            // For balance: monthly savings = starting amount * monthly rate
-            let calculatedSavings = startingAmount * monthlyRate;
-            // Round to nearest 10 (slider step)
-            calculatedSavings = Math.round(calculatedSavings / 10) * 10;
-            // Clamp to min/max range
-            calculatedSavings = Math.max(0, Math.min(1000, calculatedSavings));
-            
-            return calculatedSavings;
-        }
-        
-        // Calculate balanced inflation (rounds to nearest 0.1)
-        function calculateBalancedInflation(startingAmount, monthlySavings) {
-            let calculatedInflation;
-            
-            // Handle division by zero (set to default 7% if starting amount is 0)
-            if (startingAmount === 0) {
-                calculatedInflation = 7;
-            } else {
-                // For balance: monthly savings = starting amount * monthly rate
-                // Therefore: monthly rate = monthly savings / starting amount
-                const monthlyRate = monthlySavings / startingAmount;
-                // Convert monthly compound rate back to annual: (1 + monthly)^12 - 1
-                calculatedInflation = (Math.pow(1 + monthlyRate, 12) - 1) * 100;
-                // Round to 1 decimal place (slider step is 0.1)
-                calculatedInflation = Math.round(calculatedInflation * 10) / 10;
-                // Clamp to min/max range
-                calculatedInflation = Math.max(5, Math.min(20, calculatedInflation));
-            }
-            
-            return calculatedInflation;
-        }
-        
         // Function to set balance icon for all three buttons
-        // state: 'balanced', 'shrink', or 'grow'
-        function setBalanceIcon(state) {
+        function setBalanceIcon(iconFile, flipHorizontal = false) {
             const buttons = [
                 document.getElementById('balanceStartAmount'),
                 document.getElementById('balanceInflation'),
@@ -155,15 +114,12 @@
             ];
             buttons.forEach(button => {
                 if (button) {
-                    if (state === 'balanced') {
-                        button.style.backgroundImage = `url('balance.png')`;
-                        button.style.transform = 'none';
-                    } else if (state === 'grow') {
-                        button.style.backgroundImage = `url('balance-tilt.png')`;
-                        button.style.transform = 'scaleX(-1)'; // Flip horizontally
-                    } else { // 'shrink'
-                        button.style.backgroundImage = `url('balance-tilt.png')`;
-                        button.style.transform = 'none';
+                    button.style.backgroundImage = `url('${iconFile}')`;
+                    // Apply horizontal flip using CSS transform
+                    if (flipHorizontal) {
+                        button.style.transform = 'scaleX(-1)';
+                    } else {
+                        button.style.transform = 'scaleX(1)';
                     }
                 }
             });
@@ -175,127 +131,148 @@
             const currentInflation = parseFloat(document.getElementById('inflation').value);
             const currentSavings = parseInt(document.getElementById('savings').value);
             
-            // Calculate what each balanced value would be
-            const balancedStartAmount = calculateBalancedStartAmount(currentSavings, currentInflation);
-            const balancedSavings = calculateBalancedSavings(currentStartAmount, currentInflation);
-            const balancedInflation = calculateBalancedInflation(currentStartAmount, currentSavings);
+            // Get balance state from financial-math.js
+            const balanceState = getBalanceState(currentStartAmount, currentSavings, currentInflation);
             
-            // Check if any of the three calculations match current values
-            const startAmountMatches = (currentStartAmount === balancedStartAmount);
-            const savingsMatches = (currentSavings === balancedSavings);
-            const inflationMatches = (currentInflation === balancedInflation);
-            
-            const isBalanced = startAmountMatches || savingsMatches || inflationMatches;
-            
-            if (isBalanced) {
-                setBalanceIcon('balanced');
-            } else {
-                // Determine if pig will grow or shrink
-                // Calculate monthly inflation loss vs monthly savings gain
-                const annualInflation = currentInflation / 100;
-                const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
-                const monthlyInflationLoss = currentStartAmount * monthlyRate;
-                
-                if (currentSavings > monthlyInflationLoss) {
-                    // Pig will grow
-                    setBalanceIcon('grow');
-                } else {
-                    // Pig will shrink
-                    setBalanceIcon('shrink');
-                }
+            // Update icon based on state
+            if (balanceState === CONFIG.balanceStates.BALANCED) {
+                // Balanced: show balance icon (no flip)
+                setBalanceIcon(CONFIG.images.balance, false);
+            } else if (balanceState === CONFIG.balanceStates.GROW) {
+                // Growing: show tilted icon (no flip - tilts right)
+                setBalanceIcon(CONFIG.images.balanceTilt, false);
+            } else if (balanceState === CONFIG.balanceStates.SHRINK) {
+                // Shrinking: show tilted icon (flipped - tilts left)
+                setBalanceIcon(CONFIG.images.balanceTilt, true);
             }
         }
         
+        // Slider event listeners
         document.getElementById('startAmount').addEventListener('input', (e) => {
-            document.getElementById('startAmountValue').textContent = e.target.value;
-            if (typeof window.initializeFromStartingAmount === 'function') {
+            const newValue = parseInt(e.target.value);
+            document.getElementById('startAmountValue').textContent = newValue;
+            
+            // Only reset if value actually changed (prevent duplicate resets)
+            if (typeof window.stateManager !== 'undefined') {
+                const currentSavings = window.stateManager.get('totalSavings');
+                // Only reset if the starting amount differs from current savings
+                // (indicating this is a user slider move, not a balance button click that already reset)
+                if (currentSavings !== newValue) {
+                    window.stateManager.reset(newValue);
+                }
+            } else if (typeof window.initializeFromStartingAmount === 'function') {
+                // Fallback for backwards compatibility
                 window.initializeFromStartingAmount();
             }
-            checkBalance(); // Check balance after manual adjustment
+            
+            checkBalance();
         });
         
         document.getElementById('inflation').addEventListener('input', (e) => {
             document.getElementById('inflationValue').textContent = e.target.value;
-            checkBalance(); // Check balance after manual adjustment
+            checkBalance();
         });
         
         document.getElementById('savings').addEventListener('input', (e) => {
             document.getElementById('savingsValue').textContent = e.target.value;
-            checkBalance(); // Check balance after manual adjustment
+            checkBalance();
         });
         
+        // Button event listeners
         document.getElementById('restartButton').addEventListener('click', () => {
-            if (typeof window.resetPigFill === 'function') {
+            if (typeof window.stateManager !== 'undefined') {
+                window.stateManager.reset();
+            } else if (typeof window.resetPigFill === 'function') {
+                // Fallback for backwards compatibility
                 window.resetPigFill();
             }
         });
         
         document.getElementById('pauseButton').addEventListener('click', () => {
-            if (typeof window.togglePause === 'function') {
+            if (typeof window.stateManager !== 'undefined') {
+                const isPaused = window.stateManager.togglePause();
+                // Reset lastDropTime to prevent burst of drops on resume
+                if (!isPaused) {
+                    window.stateManager.updateLastDropTime(performance.now());
+                }
+                // UI update happens automatically via isPaused subscription
+            } else if (typeof window.togglePause === 'function') {
+                // Fallback for backwards compatibility
                 window.togglePause();
             }
         });
         
-        // Balance button for Starting Amount - calculates optimal starting amount
+        // Balance button for Starting Amount
         document.getElementById('balanceStartAmount').addEventListener('click', () => {
             const monthlySavings = parseInt(document.getElementById('savings').value);
             const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
             
             const calculatedAmount = calculateBalancedStartAmount(monthlySavings, annualInflationPercent);
             
-            // Set all buttons to balanced icon immediately
-            setBalanceIcon('balanced');
+            // Set all buttons to balanced icon immediately (no flip)
+            setBalanceIcon(CONFIG.images.balance, false);
             
             // Set the slider value
             const startAmountSlider = document.getElementById('startAmount');
             startAmountSlider.value = calculatedAmount;
             
-            // Update display value manually
-            document.getElementById('startAmountValue').textContent = calculatedAmount;
-            if (typeof window.initializeFromStartingAmount === 'function') {
-                window.initializeFromStartingAmount();
+            // Trigger input event to update settingsCache and display
+            startAmountSlider.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // IMPORTANT: Reset state manager with calculated value directly
+            // Don't rely on settingsCache being updated yet (race condition)
+            if (typeof window.stateManager !== 'undefined') {
+                window.stateManager.reset(calculatedAmount);
             }
         });
         
-        // Balance button for Monthly Savings - calculates optimal monthly savings
+        // Balance button for Monthly Savings
         document.getElementById('balanceSavings').addEventListener('click', () => {
             const startingAmount = parseInt(document.getElementById('startAmount').value);
             const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
             
             const calculatedSavings = calculateBalancedSavings(startingAmount, annualInflationPercent);
             
-            // Set all buttons to balanced icon immediately
-            setBalanceIcon('balanced');
+            // Set all buttons to balanced icon immediately (no flip)
+            setBalanceIcon(CONFIG.images.balance, false);
             
             // Set the slider value
             const savingsSlider = document.getElementById('savings');
             savingsSlider.value = calculatedSavings;
             
-            // Update display value manually
-            document.getElementById('savingsValue').textContent = calculatedSavings;
+            // Trigger input event to update settingsCache
+            savingsSlider.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Display value is updated by the input event listener
         });
         
-        // Balance button for Inflation - calculates optimal inflation rate
+        // Balance button for Inflation
         document.getElementById('balanceInflation').addEventListener('click', () => {
             const startingAmount = parseInt(document.getElementById('startAmount').value);
             const monthlySavings = parseInt(document.getElementById('savings').value);
             
             const calculatedInflation = calculateBalancedInflation(startingAmount, monthlySavings);
             
-            // Set all buttons to balanced icon immediately
-            setBalanceIcon('balanced');
+            // Set all buttons to balanced icon immediately (no flip)
+            setBalanceIcon(CONFIG.images.balance, false);
             
             // Set the slider value
             const inflationSlider = document.getElementById('inflation');
             inflationSlider.value = calculatedInflation;
             
-            // Update display value manually
-            document.getElementById('inflationValue').textContent = calculatedInflation;
+            // Trigger input event to update settingsCache
+            inflationSlider.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Display value is updated by the input event listener
         });
         
-        // Set initial state to balance-tilt.png on page load
-        setBalanceIcon('shrink');
+        // Set initial state on page load (check if balanced)
+        document.addEventListener('DOMContentLoaded', () => {
+            checkBalance();
+        });
     </script>
+    
+    <!-- 6. Animation Logic - uses all above modules -->
     <script src="ppl-animation.js"></script>
 </body>
 </html>
