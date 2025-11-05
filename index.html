@@ -35,6 +35,9 @@
         <div class="pig-oval-fill"></div>
     </div>
     
+    <!-- Leak oval representing inflation rate (empty oval with border) -->
+    <div class="leak-oval scaled-element"></div>
+    
     <!-- Percentage display centered on pig -->
     <div class="pig-percentage scaled-element" id="pigPercentageDisplay">0%</div>
     
@@ -174,6 +177,10 @@
         document.getElementById('inflation').addEventListener('input', (e) => {
             document.getElementById('inflationValue').textContent = e.target.value;
             checkBalance();
+            // Update leak oval size when inflation changes
+            if (typeof window.updateLeakOval === 'function') {
+                window.updateLeakOval();
+            }
         });
         
         document.getElementById('savings').addEventListener('input', (e) => {
@@ -329,6 +336,11 @@
             
             // Trigger input event to update settingsCache
             inflationSlider.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Update leak oval size explicitly (in addition to input event)
+            if (typeof window.updateLeakOval === 'function') {
+                window.updateLeakOval();
+            }
             
             // Display value is updated by the input event listener
         });

@@ -438,6 +438,25 @@ function updateInfoPanel() {
     }
 }
 
+/**
+ * Update the leak oval size based on current inflation rate
+ * The leak oval visualizes the inflation "leak" at the bottom of the pig
+ */
+function updateLeakOval() {
+    const leakOval = document.querySelector(CONFIG.selectors.leakOval);
+    if (!leakOval) return;
+    
+    // Get current inflation rate as percentage
+    const inflationPercent = stateManager.getAnnualInflation() * 100;
+    
+    // Calculate oval dimensions using helper function from config.js
+    const { width, height } = calculateLeakOvalSize(inflationPercent);
+    
+    // Apply dimensions with CSS scale variable for responsive sizing
+    leakOval.style.width = `calc(${width}px * var(--scale))`;
+    leakOval.style.height = `calc(${height}px * var(--scale))`;
+}
+
 // ============================================================================
 // DROP CREATION
 // ============================================================================
@@ -641,6 +660,9 @@ const debouncedResize = debounce(() => {
     }
     
     adjustForMobile();
+    
+    // Update leak oval size with new scale
+    updateLeakOval();
 }, CONFIG.RESIZE_DEBOUNCE_MS);
 
 window.addEventListener('resize', debouncedResize);
@@ -679,6 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePPDisplay();
     updatePauseButtonUI();
     updateInfoPanel();
+    updateLeakOval();
     
     // Start animation loop (for drop physics)
     requestAnimationFrame(animate);
@@ -749,3 +772,5 @@ function togglePause() {
 window.resetPigFill = resetPigFill;
 window.initializeFromStartingAmount = initializeFromStartingAmount;
 window.togglePause = togglePause;
+window.startSimulation = startSimulation;
+window.updateLeakOval = updateLeakOval;

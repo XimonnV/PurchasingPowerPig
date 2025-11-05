@@ -273,6 +273,23 @@ button.paused:active {
     overflow: visible; /* Allow ripples to show at top */
 }
 
+/* Leak oval - visualizes inflation rate as oval at bottom of pig oval */
+.leak-oval {
+    position: absolute;
+    left: 50%;
+    top: calc(397px * var(--scale)); /* CONFIG.positions.leakOval.top - bottom of pig oval where drops originate */
+    transform: translate(-50%, -50%); /* Center both horizontally and vertically */
+    border: calc(3px * var(--scale)) solid #000000; /* CONFIG.positions.leakOval.borderWidth */
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 4; /* CONFIG.zIndex.leakOval - above pig oval, below percentage */
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black fill */
+    /* Size is set dynamically by JavaScript based on inflation rate */
+    width: 0; /* Initial size - will be updated */
+    height: 0; /* Initial size - will be updated */
+    transition: width 0.3s ease-out, height 0.3s ease-out; /* Smooth size transitions */
+}
+
 /* Money drops */
 .money-drop {
     position: fixed;

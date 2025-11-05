@@ -136,6 +136,11 @@ const CONFIG = {
             // Vertical offset from pig top
             verticalOffset: 130
         },
+        leakOval: {
+            top: 397,  // Bottom of pig oval (285 + 115 - 3px adjustment) - where inflation drops originate
+            borderWidth: 3,
+            heightRatio: 3  // Height = width / heightRatio
+        },
         banker: {
             top: 501,  // Pig bottom (200 + 300) + 1px spacing
             width: 500,
@@ -165,6 +170,9 @@ const CONFIG = {
         
         /** Percentage text on pig */
         pigPercentage: 3,
+        
+        /** Leak oval showing inflation rate */
+        leakOval: 4,
         
         /** Ripple effects inside containers */
         ripple: 10,
@@ -226,7 +234,8 @@ const CONFIG = {
         moneyDrop: 'money-drop',
         pigRipple: 'pig-ripple',
         mugRipple: 'mug-ripple',
-        ripple: 'ripple'
+        ripple: 'ripple',
+        leakOval: 'leak-oval'
     },
     
     
@@ -275,7 +284,8 @@ const CONFIG = {
         bankerMugContainer: '.banker-mug-container',
         bankerMugFill: '.banker-mug-fill',
         infoText: '.info-text',
-        scaledElements: '.scaled-element'
+        scaledElements: '.scaled-element',
+        leakOval: '.leak-oval'
     },
     
     
@@ -330,10 +340,36 @@ function fillPercentageToDollars(fillPercentage, container = 'pig') {
     return (fillPercentage / 100) * capacity;
 }
 
+/**
+ * Helper function to calculate leak oval dimensions based on inflation rate
+ * Maps inflation percentage (5-20%) to 2/3 of drop size range
+ * @param {number} inflationPercent - Annual inflation as percentage (e.g., 7 for 7%)
+ * @returns {Object} Object with width and height properties (before scale adjustment)
+ */
+function calculateLeakOvalSize(inflationPercent) {
+    // Calculate min and max drop sizes (same as calculateDropSize logic)
+    const minDropSize = CONFIG.drop.smallAmountBase; // 1px
+    const maxDropSize = CONFIG.drop.largeAmountBase + 
+        (CONFIG.sliders.savings.max - CONFIG.drop.largeAmountOffset) * CONFIG.drop.largeAmountScale; // 20px
+    
+    // Map inflation percentage to drop size range
+    const minInflation = CONFIG.sliders.inflation.min;
+    const maxInflation = CONFIG.sliders.inflation.max;
+    
+    // Linear interpolation: width = min + (inflation - minInflation) / (maxInflation - minInflation) * (max - min)
+    // Then multiply by 2/3 to make leak oval smaller and more realistic
+    const fullWidth = minDropSize + (inflationPercent - minInflation) / (maxInflation - minInflation) * (maxDropSize - minDropSize);
+    const width = fullWidth * (2 / 3);
+    const height = width / CONFIG.positions.leakOval.heightRatio;
+    
+    return { width, height };
+}
+
 // Make CONFIG and helper functions available globally
 if (typeof window !== 'undefined') {
     window.CONFIG = CONFIG;
     window.calculatePigDropVolume = calculatePigDropVolume;
     window.calculateMugDropVolume = calculateMugDropVolume;
     window.fillPercentageToDollars = fillPercentageToDollars;
+    window.calculateLeakOvalSize = calculateLeakOvalSize;
 }
