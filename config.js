@@ -78,7 +78,7 @@ const CONFIG = {
         minSpeed: 3,
         
         /** Random additional speed (pixels per frame) */
-        maxSpeedVariation: 2,
+        maxSpeedVariation: 1,
         
         /** Size for invisible drops (when savings = $0) */
         invisibleDropSize: 5,

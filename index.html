@@ -35,9 +35,6 @@
         <div class="pig-oval-fill"></div>
     </div>
     
-    <!-- Leak oval representing inflation rate (empty oval with border) -->
-    <div class="leak-oval scaled-element"></div>
-    
     <!-- Percentage display centered on pig -->
     <div class="pig-percentage scaled-element" id="pigPercentageDisplay">0%</div>
     
@@ -109,250 +106,42 @@
     <!-- 4. State Manager - uses CONFIG, settingsCache, and financial-math functions -->
     <script src="state-manager.js"></script>
     
-    <!-- 5. UI Control Logic (inline) -->
+    <!-- 5. Viewport Manager - uses CONFIG and state-manager -->
+    <script src="viewport-manager.js"></script>
+    
+    <!-- 6. Display Layer - handles all visual updates -->
+    <script src="liquid-display-handler.js"></script>
+    <script src="savings-display-handler.js"></script>
+    <script src="date-display-handler.js"></script>
+    <script src="ui-display-handler.js"></script>
+    <script src="display-manager.js"></script>
+    
+    <!-- 7. Effect Manager - handles visual effects (ripples, etc.) -->
+    <script src="effect-manager.js"></script>
+    
+    <!-- 8. UI Controllers - handle user interactions -->
+    <script src="balance-controller.js"></script>
+    <script src="start-state-controller.js"></script>
+    
+    <!-- 9. Initialization - wire controllers together -->
     <script>
-        // Function to set balance icon for all three buttons
-        function setBalanceIcon(iconFile, flipHorizontal = false) {
-            const buttons = [
-                document.getElementById('balanceStartAmount'),
-                document.getElementById('balanceInflation'),
-                document.getElementById('balanceSavings')
-            ];
-            buttons.forEach(button => {
-                if (button) {
-                    button.style.backgroundImage = `url('${iconFile}')`;
-                    // Apply horizontal flip using CSS transform
-                    if (flipHorizontal) {
-                        button.style.transform = 'scaleX(-1)';
-                    } else {
-                        button.style.transform = 'scaleX(1)';
-                    }
-                }
-            });
-        }
-        
-        // Function to check if values are balanced
-        function checkBalance() {
-            const currentStartAmount = parseInt(document.getElementById('startAmount').value);
-            const currentInflation = parseFloat(document.getElementById('inflation').value);
-            const currentSavings = parseInt(document.getElementById('savings').value);
-            
-            // Get balance state from financial-math.js
-            const balanceState = getBalanceState(currentStartAmount, currentSavings, currentInflation);
-            
-            // Update icon based on state
-            if (balanceState === CONFIG.balanceStates.BALANCED) {
-                // Balanced: show balance icon (no flip)
-                setBalanceIcon(CONFIG.images.balance, false);
-            } else if (balanceState === CONFIG.balanceStates.GROW) {
-                // Growing: show tilted icon (no flip - tilts right)
-                setBalanceIcon(CONFIG.images.balanceTilt, false);
-            } else if (balanceState === CONFIG.balanceStates.SHRINK) {
-                // Shrinking: show tilted icon (flipped - tilts left)
-                setBalanceIcon(CONFIG.images.balanceTilt, true);
-            }
-        }
-        
-        // Slider event listeners
-        document.getElementById('startAmount').addEventListener('input', (e) => {
-            const newValue = parseInt(e.target.value);
-            document.getElementById('startAmountValue').textContent = newValue;
-            
-            // Only reset if value actually changed (prevent duplicate resets)
-            if (typeof window.stateManager !== 'undefined') {
-                const currentSavings = window.stateManager.get('totalSavings');
-                // Only reset if the starting amount differs from current savings
-                // (indicating this is a user slider move, not a balance button click that already reset)
-                if (currentSavings !== newValue) {
-                    window.stateManager.reset(newValue);
-                }
-            } else if (typeof window.initializeFromStartingAmount === 'function') {
-                // Fallback for backwards compatibility
-                window.initializeFromStartingAmount();
-            }
-            
-            checkBalance();
-        });
-        
-        document.getElementById('inflation').addEventListener('input', (e) => {
-            document.getElementById('inflationValue').textContent = e.target.value;
-            checkBalance();
-            // Update leak oval size when inflation changes
-            if (typeof window.updateLeakOval === 'function') {
-                window.updateLeakOval();
-            }
-        });
-        
-        document.getElementById('savings').addEventListener('input', (e) => {
-            document.getElementById('savingsValue').textContent = e.target.value;
-            checkBalance();
-        });
-        
-        // Exit start state and begin simulation
-        function exitStartState() {
-            // Remove start-state class from body
-            document.body.classList.remove('start-state');
-            
-            // Hide overlay
-            const overlay = document.getElementById('startOverlay');
-            if (overlay) {
-                overlay.classList.add('hidden');
-            }
-            
-            // Update state manager
-            if (typeof window.stateManager !== 'undefined') {
-                window.stateManager.setState({ isStartState: false });
-            }
-            
-            // Update restart button text
-            const restartButton = document.getElementById('restartButton');
-            if (restartButton) {
-                restartButton.textContent = 'Restart';
-            }
-            
-            // Wait 500ms before starting simulation
-            setTimeout(() => {
-                // Start the simulation (create first drop and start timer)
-                if (typeof window.startSimulation === 'function') {
-                    window.startSimulation();
-                }
-            }, 500);
-        }
-        
-        // Update restart button text based on start state
-        function updateRestartButtonText() {
-            const restartButton = document.getElementById('restartButton');
-            if (restartButton && typeof window.stateManager !== 'undefined') {
-                const isStartState = window.stateManager.get('isStartState');
-                restartButton.textContent = isStartState ? 'Start' : 'Restart';
-            }
-        }
-        
-        // Button event listeners
-        document.getElementById('restartButton').addEventListener('click', () => {
-            // Check if in start state
-            const isStartState = typeof window.stateManager !== 'undefined' 
-                ? window.stateManager.get('isStartState') 
-                : false;
-            
-            if (isStartState) {
-                // Exit start state and begin simulation
-                exitStartState();
-            } else {
-                // Normal restart behavior
-                if (typeof window.stateManager !== 'undefined') {
-                    window.stateManager.reset();
-                } else if (typeof window.resetPigFill === 'function') {
-                    // Fallback for backwards compatibility
-                    window.resetPigFill();
-                }
-            }
-        });
-        
-        // Enter key listener for starting simulation
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const isStartState = typeof window.stateManager !== 'undefined' 
-                    ? window.stateManager.get('isStartState') 
-                    : false;
-                
-                if (isStartState) {
-                    exitStartState();
-                }
-            }
-        });
-        
-        document.getElementById('pauseButton').addEventListener('click', () => {
-            if (typeof window.stateManager !== 'undefined') {
-                const isPaused = window.stateManager.togglePause();
-                // Reset lastDropTime to prevent burst of drops on resume
-                if (!isPaused) {
-                    window.stateManager.updateLastDropTime(performance.now());
-                }
-                // UI update happens automatically via isPaused subscription
-            } else if (typeof window.togglePause === 'function') {
-                // Fallback for backwards compatibility
-                window.togglePause();
-            }
-        });
-        
-        // Balance button for Starting Amount
-        document.getElementById('balanceStartAmount').addEventListener('click', () => {
-            const monthlySavings = parseInt(document.getElementById('savings').value);
-            const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
-            
-            const calculatedAmount = calculateBalancedStartAmount(monthlySavings, annualInflationPercent);
-            
-            // Set all buttons to balanced icon immediately (no flip)
-            setBalanceIcon(CONFIG.images.balance, false);
-            
-            // Set the slider value
-            const startAmountSlider = document.getElementById('startAmount');
-            startAmountSlider.value = calculatedAmount;
-            
-            // Trigger input event to update settingsCache and display
-            startAmountSlider.dispatchEvent(new Event('input', { bubbles: true }));
-            
-            // IMPORTANT: Reset state manager with calculated value directly
-            // Don't rely on settingsCache being updated yet (race condition)
-            if (typeof window.stateManager !== 'undefined') {
-                window.stateManager.reset(calculatedAmount);
-            }
-        });
-        
-        // Balance button for Monthly Savings
-        document.getElementById('balanceSavings').addEventListener('click', () => {
-            const startingAmount = parseInt(document.getElementById('startAmount').value);
-            const annualInflationPercent = parseFloat(document.getElementById('inflation').value);
-            
-            const calculatedSavings = calculateBalancedSavings(startingAmount, annualInflationPercent);
-            
-            // Set all buttons to balanced icon immediately (no flip)
-            setBalanceIcon(CONFIG.images.balance, false);
-            
-            // Set the slider value
-            const savingsSlider = document.getElementById('savings');
-            savingsSlider.value = calculatedSavings;
-            
-            // Trigger input event to update settingsCache
-            savingsSlider.dispatchEvent(new Event('input', { bubbles: true }));
-            
-            // Display value is updated by the input event listener
-        });
-        
-        // Balance button for Inflation
-        document.getElementById('balanceInflation').addEventListener('click', () => {
-            const startingAmount = parseInt(document.getElementById('startAmount').value);
-            const monthlySavings = parseInt(document.getElementById('savings').value);
-            
-            const calculatedInflation = calculateBalancedInflation(startingAmount, monthlySavings);
-            
-            // Set all buttons to balanced icon immediately (no flip)
-            setBalanceIcon(CONFIG.images.balance, false);
-            
-            // Set the slider value
-            const inflationSlider = document.getElementById('inflation');
-            inflationSlider.value = calculatedInflation;
-            
-            // Trigger input event to update settingsCache
-            inflationSlider.dispatchEvent(new Event('input', { bubbles: true }));
-            
-            // Update leak oval size explicitly (in addition to input event)
-            if (typeof window.updateLeakOval === 'function') {
-                window.updateLeakOval();
-            }
-            
-            // Display value is updated by the input event listener
-        });
-        
-        // Set initial state on page load (check if balanced)
+        // Initialize controllers when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
-            checkBalance();
-            updateRestartButtonText();
+            // Create controller instances
+            const balanceController = new BalanceController(CONFIG, stateManager);
+            const startStateController = new StartStateController(CONFIG, stateManager);
+            
+            // Initialize controllers
+            balanceController.initialize();
+            startStateController.initialize();
+            
+            // Expose for debugging/external access if needed
+            window.balanceController = balanceController;
+            window.startStateController = startStateController;
         });
     </script>
     
-    <!-- 6. Animation Logic - uses all above modules -->
+    <!-- 10. Animation Logic - uses all above modules -->
     <script src="ppl-animation.js"></script>
 </body>
 </html>
