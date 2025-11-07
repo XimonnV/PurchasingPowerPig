@@ -119,7 +119,11 @@
     <!-- 7. Effect Manager - handles visual effects (ripples, etc.) -->
     <script src="effect-manager.js"></script>
 
-    <!-- 8. Drop System - modular drop components (Sprint 2 refactoring) -->
+    <!-- 8. Utilities (Sprint 3 extraction) -->
+    <script src="drop-size-calculator.js"></script>
+    <script src="formatters.js"></script>
+
+    <!-- 9. Drop System - modular drop components (Sprint 2 refactoring) -->
     <script src="drop-physics.js"></script>
     <script src="drop-renderer.js"></script>
     <script src="liquid-container.js"></script>
@@ -128,29 +132,64 @@
     <script src="timing-manager.js"></script>
     <script src="simulation-manager.js"></script>
 
-    <!-- 9. UI Controllers - handle user interactions -->
+    <!-- 10. UI Controllers - handle user interactions -->
     <script src="balance-controller.js"></script>
     <script src="start-state-controller.js"></script>
 
-    <!-- 10. Initialization - wire controllers together -->
+    <!-- 11. Main Application Controller (Sprint 3) -->
+    <script src="app.js"></script>
+
+    <!-- 12. Global Utility Functions -->
     <script>
-        // Initialize controllers when DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            // Create controller instances
-            const balanceController = new BalanceController(CONFIG, stateManager);
-            const startStateController = new StartStateController(CONFIG, stateManager);
+        /**
+         * Get the current scale factor from CSS
+         * This reads the --scale CSS variable set by ViewportManager
+         * @returns {number} Scale factor (default 1.0)
+         */
+        function getScaleFactor() {
+            const scale = getComputedStyle(document.documentElement)
+                .getPropertyValue('--scale').trim();
+            return parseFloat(scale) || 1;
+        }
 
-            // Initialize controllers
-            balanceController.initialize();
-            startStateController.initialize();
-
-            // Expose for debugging/external access if needed
-            window.balanceController = balanceController;
-            window.startStateController = startStateController;
-        });
+        // Expose globally
+        window.getScaleFactor = getScaleFactor;
     </script>
 
-    <!-- 11. Animation Coordinator - uses all above modules -->
-    <script src="ppl-animation.js"></script>
+    <!-- 13. Initialize Application -->
+    <script>
+        // Create and initialize app when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const app = new PurchasingPowerPigApp();
+                app.initialize();
+
+                // Expose app globally for debugging and access
+                window.app = app;
+
+                // Expose legacy global functions for backwards compatibility
+                window.startSimulation = () => {
+                    console.log('startSimulation() called');
+                    return window.app.start();
+                };
+                window.resetPigFill = () => {
+                    console.log('resetPigFill() called');
+                    return window.app.restart();
+                };
+                window.togglePause = () => {
+                    console.log('togglePause() called');
+                    return window.app.togglePause();
+                };
+                window.initializeFromStartingAmount = () => {
+                    console.log('initializeFromStartingAmount() called');
+                    return window.app.getSimulationManager().initializeFromStartingAmount();
+                };
+
+                console.log('✅ Application initialized successfully!');
+            } catch (error) {
+                console.error('❌ Failed to initialize application:', error);
+            }
+        });
+    </script>
 </body>
 </html>
