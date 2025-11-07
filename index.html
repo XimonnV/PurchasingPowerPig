@@ -96,52 +96,61 @@
     <!-- Load JavaScript modules in dependency order -->
     <!-- 1. CONFIG - must load first -->
     <script src="config.js"></script>
-    
+
     <!-- 2. Financial Math - uses CONFIG -->
     <script src="financial-math.js"></script>
-    
+
     <!-- 3. DOM Cache - uses CONFIG -->
     <script src="dom-cache.js"></script>
-    
+
     <!-- 4. State Manager - uses CONFIG, settingsCache, and financial-math functions -->
     <script src="state-manager.js"></script>
-    
+
     <!-- 5. Viewport Manager - uses CONFIG and state-manager -->
     <script src="viewport-manager.js"></script>
-    
+
     <!-- 6. Display Layer - handles all visual updates -->
     <script src="liquid-display-handler.js"></script>
     <script src="savings-display-handler.js"></script>
     <script src="date-display-handler.js"></script>
     <script src="ui-display-handler.js"></script>
     <script src="display-manager.js"></script>
-    
+
     <!-- 7. Effect Manager - handles visual effects (ripples, etc.) -->
     <script src="effect-manager.js"></script>
-    
-    <!-- 8. UI Controllers - handle user interactions -->
+
+    <!-- 8. Drop System - modular drop components (Sprint 2 refactoring) -->
+    <script src="drop-physics.js"></script>
+    <script src="drop-renderer.js"></script>
+    <script src="liquid-container.js"></script>
+    <script src="drop-controller.js"></script>
+    <script src="animation-engine.js"></script>
+    <script src="timing-manager.js"></script>
+    <script src="simulation-manager.js"></script>
+
+    <!-- 9. UI Controllers - handle user interactions -->
     <script src="balance-controller.js"></script>
     <script src="start-state-controller.js"></script>
-    
-    <!-- 9. Initialization - wire controllers together -->
+
+    <!-- 10. Initialization - wire controllers together -->
     <script>
         // Initialize controllers when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             // Create controller instances
             const balanceController = new BalanceController(CONFIG, stateManager);
             const startStateController = new StartStateController(CONFIG, stateManager);
-            
+
             // Initialize controllers
             balanceController.initialize();
             startStateController.initialize();
-            
+
             // Expose for debugging/external access if needed
             window.balanceController = balanceController;
             window.startStateController = startStateController;
         });
     </script>
-    
-    <!-- 10. Animation Logic - uses all above modules -->
+
+    <!-- 11. Animation Coordinator - uses all above modules -->
     <script src="ppl-animation.js"></script>
 </body>
 </html>

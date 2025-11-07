@@ -1,15 +1,21 @@
 /**
- * Purchasing Power Pig - Animation Module (Refactored)
- * 
- * Handles animation rendering, drop physics, and visual updates.
- * Display updates delegated to display-manager.js
- * Visual effects delegated to effect-manager.js
- * State management delegated to state-manager.js
- * Calculations delegated to financial-math.js
- * Settings read from settingsCache (dom-cache.js)
- * Constants from config.js
- * Viewport/scaling managed by viewport-manager.js
- * 
+ * Purchasing Power Pig - Animation Module (Refactored Sprint 2)
+ *
+ * Simplified coordination layer for the animation system.
+ * Drop system now split into focused modules:
+ * - drop-physics.js: Pure physics model
+ * - drop-renderer.js: Pure DOM rendering
+ * - liquid-container.js: Container abstraction
+ * - drop-controller.js: Drop orchestration
+ * - animation-engine.js: Animation loop
+ * - timing-manager.js: Drop interval timing
+ * - simulation-manager.js: Business logic
+ *
+ * This file now primarily handles:
+ * - Initialization and coordination
+ * - Drop creation logic
+ * - Integration between modules
+ *
  * Dependencies (must be loaded in order):
  * 1. config.js
  * 2. financial-math.js
@@ -18,7 +24,27 @@
  * 5. viewport-manager.js
  * 6. display-manager.js (+ all handlers)
  * 7. effect-manager.js
+ * 8. drop-physics.js
+ * 9. drop-renderer.js
+ * 10. liquid-container.js
+ * 11. drop-controller.js
+ * 12. animation-engine.js
+ * 13. timing-manager.js
+ * 14. simulation-manager.js
  */
+
+// ============================================================================
+// MODULE INSTANCES (initialized in DOMContentLoaded)
+// ============================================================================
+
+let viewportManager = null;
+let displayManager = null;
+let effectManager = null;
+let animationEngine = null;
+let timingManager = null;
+let simulationManager = null;
+let pigContainer = null;
+let mugContainer = null;
 
 // ============================================================================
 // VIEWPORT UTILITIES
@@ -34,142 +60,13 @@ function getScaleFactor() {
 }
 
 // ============================================================================
-// DROP CLASS
-// ============================================================================
-
-/**
- * Drop class - represents a falling money drop
- */
-class Drop {
-    constructor(startX, startY, size, target = 'pig') {
-        this.x = startX;
-        this.y = startY;
-        this.size = size;
-        // Scale falling speed based on viewport scale
-        const scaleFactor = getScaleFactor();
-        this.speed = (CONFIG.drop.minSpeed + Math.random() * CONFIG.drop.maxSpeedVariation) * scaleFactor;
-        this.target = target; // 'pig' or 'mug'
-        this.dollarAmount = 0; // Will be set externally
-        this.element = this.createElement();
-    }
-
-    createElement() {
-        const drop = document.createElement('div');
-        drop.className = CONFIG.cssClasses.moneyDrop;
-        drop.style.left = this.x + 'px';
-        drop.style.top = this.y + 'px';
-        drop.style.width = this.size + 'px';
-        drop.style.height = (this.size * 1.5) + 'px';
-        document.body.appendChild(drop);
-        return drop;
-    }
-
-    update() {
-        this.y += this.speed;
-        this.element.style.top = this.y + 'px';
-
-        if (this.target === 'pig') {
-            return this.updatePigTarget();
-        } else if (this.target === 'mug') {
-            return this.updateMugTarget();
-        }
-        
-        return true;
-    }
-    
-    updatePigTarget() {
-        // Check if drop reached the oval container
-        const oval = document.querySelector(CONFIG.selectors.pigOvalContainer);
-        if (!oval) return true;
-
-        const ovalRect = oval.getBoundingClientRect();
-        const fillLevel = stateManager.get('fillLevel');
-        
-        // Calculate current fill level position in oval
-        const fillHeight = (fillLevel / 100) * ovalRect.height;
-        const waterSurfaceY = ovalRect.bottom - fillHeight;
-
-        // Check if drop hits the water surface (or bottom of empty container)
-        const targetY = fillLevel > 0 ? waterSurfaceY : ovalRect.bottom - CONFIG.collision.emptyContainerOffset;
-
-        if (this.y >= targetY - this.size / 2) {
-            // Add monthly savings when drop lands (pig grows)
-            stateManager.addMonthlySavingsToPig();
-            
-            // Advance month
-            stateManager.advanceMonth();
-            
-            // Schedule inflation 500ms later
-            setTimeout(() => {
-                // Calculate and apply monthly inflation immediately
-                const monthlyRate = stateManager.getMonthlyInflationRate();
-                const currentFillLevel = stateManager.get('fillLevel');
-                const inflationReduction = currentFillLevel * monthlyRate; // percentage points
-                const inflationDollars = fillPercentageToDollars(inflationReduction, 'pig');
-                
-                // Apply inflation immediately (pig shrinks now)
-                if (inflationReduction > 0) {
-                    stateManager.updateFillLevel(currentFillLevel - inflationReduction);
-                }
-                
-                // Create inflation drop (purely visual - value already applied)
-                if (inflationDollars > 0) {
-                    createInflationDrop(inflationDollars);
-                }
-            }, CONFIG.INFLATION_DELAY_MS);
-            
-            // Create ripple effect
-            if (window.effectManager) {
-                window.effectManager.createRipple(oval, CONFIG.cssClasses.pigRipple);
-            }
-            
-            // Remove drop
-            this.element.remove();
-            return false;
-        }
-        
-        return true;
-    }
-    
-    updateMugTarget() {
-        // Check if drop reached the banker's mug
-        const mug = document.querySelector(CONFIG.selectors.bankerMugContainer);
-        if (!mug) return true;
-
-        const mugRect = mug.getBoundingClientRect();
-        const mugFillLevel = stateManager.get('mugFillLevel');
-        
-        // Calculate current fill level position in mug
-        const fillHeight = (mugFillLevel / 100) * mugRect.height;
-        const waterSurfaceY = mugRect.bottom - fillHeight;
-
-        // Check if drop hits the water surface (or bottom of empty container)
-        const targetY = mugFillLevel > 0 ? waterSurfaceY : mugRect.bottom - CONFIG.collision.emptyContainerOffset;
-
-        if (this.y >= targetY - this.size / 2) {
-            // Add inflation loss to banker's mug
-            stateManager.addInflationLossToMug(this.dollarAmount);
-            
-            // Create ripple effect
-            if (window.effectManager) {
-                window.effectManager.createRipple(mug, CONFIG.cssClasses.mugRipple);
-            }
-            
-            // Remove drop
-            this.element.remove();
-            return false;
-        }
-        
-        return true;
-    }
-}
-
-// ============================================================================
-// DROP CREATION
+// DROP SIZE CALCULATION
 // ============================================================================
 
 /**
  * Calculate drop size based on dollar amount
+ * @param {number} amount - Dollar amount
+ * @returns {number} Drop size in pixels (scaled)
  */
 function calculateDropSize(amount) {
     let size;
@@ -178,184 +75,181 @@ function calculateDropSize(amount) {
     } else {
         size = CONFIG.drop.largeAmountBase + (amount - CONFIG.drop.largeAmountOffset) * CONFIG.drop.largeAmountScale;
     }
-    
+
     // Apply viewport scale factor
     const scaleFactor = getScaleFactor();
     return size * scaleFactor;
 }
 
+// ============================================================================
+// DROP CREATION
+// ============================================================================
+
 /**
- * Create a new savings drop
+ * Create a new savings drop (falls from top to pig)
  */
-function createDrop() {
+function createSavingsDrop() {
     const savings = stateManager.getMonthlySavings();
-    
+
     // No drop if savings is 0
     if (savings === 0) return;
 
-    // Calculate drop size using helper function
+    // Calculate drop size
     const size = calculateDropSize(savings);
 
-    // Get pig and oval position
-    const oval = document.querySelector(CONFIG.selectors.pigOvalContainer);
-    if (!oval) return;
+    // Get drop spawn position from pig container
+    const spawnPos = pigContainer.getDropSpawnPosition(size);
+    if (!spawnPos) return;
 
-    const ovalRect = oval.getBoundingClientRect();
-    const dropX = ovalRect.left + ovalRect.width / 2 - size / 2;
-    const dropY = 0;
+    // Create drop components
+    const physics = new DropPhysics(spawnPos.x, spawnPos.y,
+        (CONFIG.drop.minSpeed + Math.random() * CONFIG.drop.maxSpeedVariation) * getScaleFactor()
+    );
+    const renderer = new DropRenderer(physics, size, CONFIG);
 
-    const drop = new Drop(dropX, dropY, size, 'pig');
-    stateManager.addDrop(drop);
+    // Create drop controller with landing callback
+    const controller = new DropController(physics, renderer, pigContainer, size, {
+        onLand: (ctrl) => {
+            // Add monthly savings when drop lands
+            simulationManager.addMonthlySavingsToPig();
+
+            // Advance month
+            simulationManager.advanceMonth();
+
+            // Schedule inflation 500ms later
+            setTimeout(() => {
+                // Apply inflation and get dollar amount lost
+                const inflationDollars = simulationManager.applyMonthlyInflation();
+
+                // Create visual inflation drop
+                if (inflationDollars > 0) {
+                    createInflationDrop(inflationDollars);
+                }
+            }, CONFIG.INFLATION_DELAY_MS);
+
+            // Create ripple effect
+            const containerElement = pigContainer.getElement();
+            if (containerElement && effectManager) {
+                effectManager.createRipple(containerElement, CONFIG.cssClasses.pigRipple);
+            }
+        }
+    });
+
+    // Add to animation engine
+    animationEngine.addDrop(controller);
 }
 
 /**
  * Create an inflation drop (falls from pig to banker's mug)
- * 
  * @param {number} dollarAmount - Dollar amount this drop represents
  */
 function createInflationDrop(dollarAmount) {
     if (dollarAmount <= 0) return;
 
-    // Calculate drop size using helper function
+    // Calculate drop size
     const size = calculateDropSize(dollarAmount);
 
-    // Get pig oval position - drop starts from bottom
-    const oval = document.querySelector(CONFIG.selectors.pigOvalContainer);
-    if (!oval) return;
+    // Get pig container bottom as starting point
+    const pigBounds = pigContainer.getBounds();
+    if (!pigBounds) return;
 
-    const ovalRect = oval.getBoundingClientRect();
-    const dropX = ovalRect.left + ovalRect.width / 2 - size / 2;
-    const dropY = ovalRect.bottom;
+    const dropX = pigBounds.left + (pigBounds.width / 2) - (size / 2);
+    const dropY = pigBounds.bottom;
 
-    const drop = new Drop(dropX, dropY, size, 'mug');
-    drop.dollarAmount = dollarAmount;
-    stateManager.addDrop(drop);
-}
+    // Create drop components
+    const physics = new DropPhysics(dropX, dropY,
+        (CONFIG.drop.minSpeed + Math.random() * CONFIG.drop.maxSpeedVariation) * getScaleFactor()
+    );
+    const renderer = new DropRenderer(physics, size, CONFIG);
 
-// ============================================================================
-// ANIMATION LOOP
-// ============================================================================
+    // Create drop controller with landing callback
+    const controller = new DropController(physics, renderer, mugContainer, size, {
+        onLand: (ctrl) => {
+            // Add inflation loss to banker's mug
+            const amount = ctrl.getDollarAmount();
+            simulationManager.addInflationLossToMug(amount);
 
-/**
- * Main animation loop
- */
-function animate(timestamp) {
-    const isPaused = stateManager.get('isPaused');
-    
-    // Skip updates if paused
-    if (!isPaused) {
-        // Update all drops and filter out completed ones
-        const drops = stateManager.get('drops');
-        const activeDrops = drops.filter(drop => drop.update());
-        
-        // Only update state if drops changed
-        if (activeDrops.length !== drops.length) {
-            stateManager.setState({ drops: activeDrops });
-        }
-    }
-
-    requestAnimationFrame(animate);
-}
-
-/**
- * Interval timer for creating savings drops (every 1000ms)
- */
-let savingsDropInterval = null;
-
-/**
- * Start the savings drop interval timer
- */
-function startSavingsDropTimer() {
-    // Clear any existing interval
-    if (savingsDropInterval) {
-        clearInterval(savingsDropInterval);
-    }
-    
-    // Create savings drops every 1000ms
-    savingsDropInterval = setInterval(() => {
-        if (!stateManager.get('isPaused')) {
-            createDrop();
-        }
-    }, CONFIG.DROP_INTERVAL_MS);
-}
-
-/**
- * Stop the savings drop interval timer
- */
-function stopSavingsDropTimer() {
-    if (savingsDropInterval) {
-        clearInterval(savingsDropInterval);
-        savingsDropInterval = null;
-    }
-}
-
-// ============================================================================
-// STATE CHANGE SUBSCRIPTIONS
-// ============================================================================
-
-/**
- * Subscribe to pause state changes to control the savings drop timer
- */
-function setupTimingSubscription() {
-    // Start/stop savings drop timer based on pause state
-    stateManager.subscribe('isPaused', () => {
-        const isPaused = stateManager.get('isPaused');
-        if (isPaused) {
-            stopSavingsDropTimer();
-        } else {
-            startSavingsDropTimer();
+            // Create ripple effect
+            const containerElement = mugContainer.getElement();
+            if (containerElement && effectManager) {
+                effectManager.createRipple(containerElement, CONFIG.cssClasses.mugRipple);
+            }
         }
     });
+
+    // Set dollar amount on controller
+    controller.setDollarAmount(dollarAmount);
+
+    // Add to animation engine
+    animationEngine.addDrop(controller);
 }
 
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
-// Global references (initialized in DOMContentLoaded)
-let viewportManager = null;
-let displayManager = null;
-let effectManager = null;
-
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize ViewportManager
     viewportManager = new ViewportManager(CONFIG, stateManager);
     viewportManager.initialize();
-    
+
     // 2. Ensure SettingsCache is initialized
     if (window.settingsCache && !window.settingsCache.initialized) {
         window.settingsCache.initialize();
     }
-    
+
     // 3. Initialize DisplayManager (sets up all display handlers and subscriptions)
     displayManager = new DisplayManager(CONFIG, stateManager);
     displayManager.initialize();
-    
+
     // 4. Initialize EffectManager (handles visual effects like ripples)
     effectManager = new EffectManager(CONFIG);
-    
-    // 5. Setup timing subscription (pause/resume)
-    setupTimingSubscription();
-    
-    // 6. Initialize state from starting amount
-    stateManager.initializeFromStartingAmount();
-    
-    // 7. Update all displays to match initial state
+
+    // 5. Initialize SimulationManager (business logic)
+    simulationManager = new SimulationManager(CONFIG, stateManager);
+
+    // 6. Initialize liquid containers
+    pigContainer = new LiquidContainer(
+        CONFIG.selectors.pigOvalContainer,
+        'fillLevel',
+        CONFIG,
+        stateManager
+    );
+    mugContainer = new LiquidContainer(
+        CONFIG.selectors.bankerMugContainer,
+        'mugFillLevel',
+        CONFIG,
+        stateManager
+    );
+
+    // 7. Initialize AnimationEngine
+    animationEngine = new AnimationEngine(stateManager);
+    animationEngine.start();
+
+    // 8. Initialize TimingManager (creates drops every 1000ms)
+    timingManager = new TimingManager(CONFIG, stateManager, createSavingsDrop);
+
+    // 9. Initialize state from starting amount
+    simulationManager.initializeFromStartingAmount();
+
+    // 10. Update all displays to match initial state
     displayManager.updateAllDisplays();
-    
-    // 8. Start animation loop (for drop physics)
-    requestAnimationFrame(animate);
-    
-    // 9. Only start simulation if not in start state
+
+    // 11. Only start simulation if not in start state
     const isStartState = stateManager.get('isStartState');
     if (!isStartState) {
         startSimulation();
     }
-    
-    // 10. Expose managers globally for access by other modules
+
+    // 12. Expose managers globally for debugging and external access
     window.displayManager = displayManager;
     window.effectManager = effectManager;
+    window.animationEngine = animationEngine;
+    window.timingManager = timingManager;
+    window.simulationManager = simulationManager;
+    window.pigContainer = pigContainer;
+    window.mugContainer = mugContainer;
 });
 
 // ============================================================================
@@ -368,10 +262,10 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function startSimulation() {
     // Create first savings drop
-    createDrop();
-    
-    // Start interval timer for subsequent savings drops (every 1000ms)
-    startSavingsDropTimer();
+    createSavingsDrop();
+
+    // Start timing manager (creates drops every 1000ms)
+    timingManager.start();
 }
 
 // Expose globally for HTML to call when exiting start state
@@ -382,21 +276,28 @@ window.startSimulation = startSimulation;
 // ============================================================================
 
 /**
- * Legacy reset function (delegates to state manager)
+ * Legacy reset function (delegates to simulation manager and animation engine)
  */
 function resetPigFill() {
-    stateManager.reset();
+    // Clear all active drops
+    animationEngine.clearAllDrops();
+
+    // Reset simulation
+    simulationManager.reset();
+
     // Create first savings drop
-    createDrop();
-    // Restart the savings drop interval timer
-    startSavingsDropTimer();
+    createSavingsDrop();
+
+    // Restart timing manager
+    timingManager.stop();
+    timingManager.start();
 }
 
 /**
- * Legacy initialize function (delegates to state manager)
+ * Legacy initialize function (delegates to simulation manager)
  */
 function initializeFromStartingAmount() {
-    stateManager.initializeFromStartingAmount();
+    simulationManager.initializeFromStartingAmount();
 }
 
 /**
@@ -404,12 +305,12 @@ function initializeFromStartingAmount() {
  */
 function togglePause() {
     const isPaused = stateManager.togglePause();
-    
+
     // Reset lastDropTime to prevent burst of drops on resume
     if (!isPaused) {
         stateManager.updateLastDropTime(performance.now());
     }
-    
+
     // UI update happens automatically via isPaused subscription
 }
 
