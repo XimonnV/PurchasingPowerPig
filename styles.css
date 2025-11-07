@@ -105,6 +105,37 @@ body.mobile-mode .info-display {
     width: 200px;
 }
 
+/* Info panel expand button */
+.info-expand-button {
+    cursor: pointer;
+    color: #2196F3; /* Blue to indicate interactivity */
+    font-size: 0.9em;
+    margin-left: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.2s ease, transform 0.1s ease;
+    display: inline-block;
+}
+
+.info-expand-button:hover {
+    color: #1976D2; /* Darker blue on hover */
+    transform: scale(1.1);
+}
+
+.info-expand-button:active {
+    transform: scale(0.95);
+}
+
+/* Expanded educational text */
+.info-expanded-text {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 13px;
+    line-height: 1.5;
+    color: #555;
+}
+
 .savings-label {
     font-weight: bold;
     color: #333;

@@ -82,7 +82,13 @@
 
         <!-- Info panel -->
         <div class="info-display">
-            <div class="info-text">A full pig equals the purchasing power of $100K at 2025 October</div>
+            <div class="info-text">
+                A full pig equals the purchasing power of $<span id="baselineAmount">100K</span> at <span id="baselineDate">2025 October</span>
+                <span id="infoExpandButton" class="info-expand-button" title="Click for more info">[+]</span>
+                <div id="infoExpandedText" class="info-expanded-text" style="display: none;">
+                    Over the medium/long run, persistent inflation is a monetary phenomenon: it requires money/liquidity to grow faster than real output (Fisher's M·V = P·Y). We therefore track 'debasement' as the growth of M relative to real activity and add it to CPI to capture latent and realized losses.
+                </div>
+            </div>
         </div>
     </div>
 

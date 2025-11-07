@@ -137,6 +137,22 @@ function formatDebugValue(value, decimals = null) {
     return formatNumber(value, precision);
 }
 
+/**
+ * Format a dollar amount as compact K notation
+ * Rounds to nearest K with no decimal places
+ * @param {number} amount - Dollar amount
+ * @returns {string} Formatted string (e.g., "100K", "106K")
+ *
+ * @example
+ * formatCurrencyK(100000) // => "100K"
+ * formatCurrencyK(105700) // => "106K"
+ * formatCurrencyK(1500)   // => "2K"
+ */
+function formatCurrencyK(amount) {
+    const thousands = Math.round(amount / 1000);
+    return thousands + 'K';
+}
+
 // Export all formatters
 if (typeof window !== 'undefined') {
     window.formatCurrency = formatCurrency;
@@ -148,6 +164,7 @@ if (typeof window !== 'undefined') {
     window.formatDecimalAsPercentage = formatDecimalAsPercentage;
     window.formatSliderValue = formatSliderValue;
     window.formatDebugValue = formatDebugValue;
+    window.formatCurrencyK = formatCurrencyK;
 }
 
 // Support direct exports if using as module
@@ -161,6 +178,7 @@ if (typeof module !== 'undefined' && module.exports) {
         formatNumber,
         formatDecimalAsPercentage,
         formatSliderValue,
-        formatDebugValue
+        formatDebugValue,
+        formatCurrencyK
     };
 }
