@@ -22,9 +22,8 @@ class StateManager {
             mugFillLevel: CONFIG.MIN_FILL_PERCENTAGE, // Banker's mug fill percentage (0-100)
             currentSimDate: new Date(),             // Current simulation date
             simulationStartDate: new Date(),        // Date when simulation started (for PP reference)
-            
+
             // Animation state
-            drops: [],                              // Array of active Drop objects
             lastDropTime: 0,                        // Timestamp of last drop creation
             isPaused: false,                        // Animation pause state
             isStartState: true,                     // Whether in initial start/welcome state
@@ -160,35 +159,7 @@ class StateManager {
     }
     
     // ========== Convenience Methods for Common Operations ==========
-    
-    /**
-     * Add a drop to the drops array
-     * @param {Drop} drop - Drop instance to add
-     */
-    addDrop(drop) {
-        this.setState({ drops: [...this.state.drops, drop] });
-    }
-    
-    /**
-     * Remove a drop from the drops array
-     * @param {Drop} drop - Drop instance to remove
-     */
-    removeDrop(drop) {
-        this.setState({ 
-            drops: this.state.drops.filter(d => d !== drop) 
-        });
-    }
-    
-    /**
-     * Filter drops array (e.g., remove completed drops)
-     * @param {Function} predicate - Filter function (drop) => boolean
-     */
-    filterDrops(predicate) {
-        this.setState({ 
-            drops: this.state.drops.filter(predicate) 
-        });
-    }
-    
+
     /**
      * Update pig fill level (clamped to min/max from CONFIG)
      * @param {number} level - New fill level percentage
@@ -334,32 +305,25 @@ class StateManager {
     }
     
     /**
-     * Reset simulation to initial state
+     * Reset simulation state to initial values
+     * NOTE: This only resets state values, not drops. Drop cleanup is handled by AnimationEngine.
      * @param {number} startAmount - Starting amount for reset (if null, uses current from SettingsCache)
      */
     reset(startAmount = null) {
-        // Clean up existing drops
-        this.state.drops.forEach(drop => {
-            if (drop.element && drop.element.parentNode) {
-                drop.element.remove();
-            }
-        });
-        
         // Use provided amount or get from SettingsCache
         const amount = startAmount !== null ? startAmount : this.getStartingAmount();
-        
+
         // Calculate initial fill level using CONFIG constant
         const initialFillLevel = (amount / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
-        
+
         // Set simulation start date to now
         const startDate = new Date();
-        
+
         this.setState({
             fillLevel: initialFillLevel,
             totalSavings: amount,
             totalBankSavings: 0,
             mugFillLevel: CONFIG.MIN_FILL_PERCENTAGE,
-            drops: [],
             lastDropTime: 0,
             isPaused: false,
             currentSimDate: new Date(startDate),

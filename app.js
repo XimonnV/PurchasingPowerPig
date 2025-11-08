@@ -47,6 +47,9 @@ class PurchasingPowerPigApp {
         this.balanceController = null;
         this.startStateController = null;
 
+        // Session tracking (increments on restart to invalidate pending callbacks)
+        this.sessionId = 0;
+
         // Initialization state
         this.initialized = false;
     }
@@ -137,7 +140,7 @@ class PurchasingPowerPigApp {
         this.balanceController.initialize();
         console.log('✓ BalanceController initialized');
 
-        this.startStateController = new StartStateController(this.config, this.stateManager);
+        this.startStateController = new StartStateController(this.config, this.stateManager, this);
         this.startStateController.initialize();
         console.log('✓ StartStateController initialized');
 
@@ -193,18 +196,22 @@ class PurchasingPowerPigApp {
 
     /**
      * Start the simulation
-     * Creates first drop and starts timing manager
+     * Creates first drop after configured delay, then starts timing manager for subsequent drops
      */
     start() {
         if (!this.initialized) {
             throw new Error('App not initialized. Call initialize() first.');
         }
 
-        // Create first savings drop
-        this.createSavingsDrop();
+        // Increment session ID to invalidate any pending callbacks from previous session
+        this.sessionId++;
 
-        // Start timing manager
-        this.timingManager.start();
+        // Create first savings drop after initial delay
+        setTimeout(() => {
+            this.createSavingsDrop();
+            // Start timing manager after first drop (for subsequent drops)
+            this.timingManager.start();
+        }, this.config.INITIAL_DROP_DELAY_MS);
     }
 
     /**
@@ -242,10 +249,13 @@ class PurchasingPowerPigApp {
 
     /**
      * Restart the simulation
-     * Clears all drops and resets to initial state
+     * Clears all drops, resets to initial state, then creates first drop after configured delay
      */
     restart() {
         if (!this.initialized) return;
+
+        // Increment session ID to invalidate any pending callbacks (e.g., scheduled inflation drops)
+        this.sessionId++;
 
         // Clear all active drops
         this.animationEngine.clearAllDrops();
@@ -253,12 +263,15 @@ class PurchasingPowerPigApp {
         // Reset simulation
         this.simulationManager.reset();
 
-        // Create first savings drop
-        this.createSavingsDrop();
-
-        // Restart timing manager
+        // Stop timing manager
         this.timingManager.stop();
-        this.timingManager.start();
+
+        // Create first savings drop after initial delay
+        setTimeout(() => {
+            this.createSavingsDrop();
+            // Restart timing manager after first drop (for subsequent drops)
+            this.timingManager.start();
+        }, this.config.INITIAL_DROP_DELAY_MS);
     }
 
     // ========================================================================
@@ -328,8 +341,17 @@ class PurchasingPowerPigApp {
                 // Advance month
                 this.simulationManager.advanceMonth();
 
+                // Capture current session ID to check if restart happened before inflation triggers
+                const currentSessionId = this.sessionId;
+
                 // Schedule inflation 500ms later
                 setTimeout(() => {
+                    // Check if session is still valid (no restart happened)
+                    if (this.sessionId !== currentSessionId) {
+                        // Session changed (restart was called), skip this inflation drop
+                        return;
+                    }
+
                     // Apply inflation and get dollar amount lost
                     const inflationDollars = this.simulationManager.applyMonthlyInflation();
 

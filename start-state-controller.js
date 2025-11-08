@@ -1,20 +1,21 @@
 /**
  * StartStateController - Start/Welcome Screen Management
- * 
+ *
  * Responsibilities:
  * - Manage start/welcome state transitions
  * - Handle "Start" button behavior (restart button in start state)
  * - Handle Enter key to begin simulation
  * - Update restart button text based on state
  * - Coordinate transition animations
- * 
+ *
  * Dependencies:
  * - config.js (CONFIG constants)
  * - state-manager.js (state updates)
- * 
+ * - app.js (for restart functionality)
+ *
  * Example:
  * ```javascript
- * const startStateController = new StartStateController(CONFIG, stateManager);
+ * const startStateController = new StartStateController(CONFIG, stateManager, app);
  * startStateController.initialize();
  * ```
  */
@@ -23,10 +24,12 @@ class StartStateController {
      * Create a new StartStateController
      * @param {Object} config - Configuration object (CONFIG from config.js)
      * @param {Object} stateManager - State manager instance
+     * @param {Object} app - App instance (for restart functionality)
      */
-    constructor(config, stateManager) {
+    constructor(config, stateManager, app = null) {
         this.config = config;
         this.stateManager = stateManager;
+        this.app = app;
         
         // Cache DOM elements
         this.elements = {
@@ -89,14 +92,17 @@ class StartStateController {
      */
     handleRestartClick() {
         const isStartState = this.stateManager ? this.stateManager.get('isStartState') : false;
-        
+
         if (isStartState) {
             // In start state: exit and begin simulation
             this.exitStartState();
         } else {
             // Normal state: restart the simulation
-            if (this.stateManager) {
-                this.stateManager.reset();
+            // Use app.restart() if available, otherwise fall back to global function
+            if (this.app && this.app.restart) {
+                this.app.restart();
+            } else if (typeof window.resetPigFill === 'function') {
+                window.resetPigFill();
             }
         }
     }

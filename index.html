@@ -92,13 +92,6 @@
         </div>
     </div>
 
-    <!-- Debug display (hidden by default - remove style="display:none" to show) -->
-    <div class="debug-display" style="display: none;">
-        Pig: <span id="debugFillValue">0.00</span>%<br>
-        Mug: <span id="debugMugValue">0.00</span>%<br>
-        Bank $: <span id="debugBankDollars">$0</span>
-    </div>
-
     <!-- Load JavaScript modules in dependency order -->
     <!-- 1. CONFIG - must load first -->
     <script src="config.js"></script>
@@ -173,7 +166,13 @@
                 // Expose app globally for debugging and access
                 window.app = app;
 
-                // Expose legacy global functions for backwards compatibility
+                // Legacy global functions for console debugging
+                // These are kept for convenience when debugging in browser console.
+                // Modern code should use window.app methods directly:
+                //   - Use: window.app.start() instead of startSimulation()
+                //   - Use: window.app.restart() instead of resetPigFill()
+                //   - Use: window.app.togglePause() instead of togglePause()
+                //   - Use: window.app.getSimulationManager().initializeFromStartingAmount() instead of initializeFromStartingAmount()
                 window.startSimulation = () => {
                     console.log('startSimulation() called');
                     return window.app.start();

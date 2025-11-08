@@ -55,10 +55,13 @@ const CONFIG = {
     // ========================================
     // ANIMATION TIMING
     // ========================================
-    
+
+    /** Delay before first drop appears when starting/restarting simulation in milliseconds */
+    INITIAL_DROP_DELAY_MS: 1000,
+
     /** Time between drops (1 drop = 1 month) in milliseconds */
     DROP_INTERVAL_MS: 1000,
-    
+
     /** Delay between drop landing and inflation effect in milliseconds */
     INFLATION_DELAY_MS: 500,
     
