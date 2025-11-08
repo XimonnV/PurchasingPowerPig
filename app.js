@@ -50,6 +50,9 @@ class PurchasingPowerPigApp {
         // Session tracking (increments on restart to invalidate pending callbacks)
         this.sessionId = 0;
 
+        // Timeout tracking for initial drop (allows cancellation on restart)
+        this.initialDropTimeoutId = null;
+
         // Initialization state
         this.initialized = false;
     }
@@ -206,8 +209,14 @@ class PurchasingPowerPigApp {
         // Increment session ID to invalidate any pending callbacks from previous session
         this.sessionId++;
 
+        // Cancel any pending initial drop timeout
+        if (this.initialDropTimeoutId !== null) {
+            clearTimeout(this.initialDropTimeoutId);
+        }
+
         // Create first savings drop after initial delay
-        setTimeout(() => {
+        this.initialDropTimeoutId = setTimeout(() => {
+            this.initialDropTimeoutId = null; // Clear reference after it fires
             this.createSavingsDrop();
             // Start timing manager after first drop (for subsequent drops)
             this.timingManager.start();
@@ -266,8 +275,14 @@ class PurchasingPowerPigApp {
         // Stop timing manager
         this.timingManager.stop();
 
+        // Cancel any pending initial drop timeout from previous restart
+        if (this.initialDropTimeoutId !== null) {
+            clearTimeout(this.initialDropTimeoutId);
+        }
+
         // Create first savings drop after initial delay
-        setTimeout(() => {
+        this.initialDropTimeoutId = setTimeout(() => {
+            this.initialDropTimeoutId = null; // Clear reference after it fires
             this.createSavingsDrop();
             // Restart timing manager after first drop (for subsequent drops)
             this.timingManager.start();
