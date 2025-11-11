@@ -386,28 +386,25 @@ class PurchasingPowerPigApp {
                     return; // Don't apply inflation after finishing
                 }
 
-                // Only apply inflation if in USD mode (BTC has no inflation)
-                if (this.stateManager.getSavingsVehicle() === 'usd') {
-                    // Capture current session ID to check if restart happened before inflation triggers
-                    const currentSessionId = this.sessionId;
+                // Capture current session ID to check if restart happened before inflation triggers
+                const currentSessionId = this.sessionId;
 
-                    // Schedule inflation 500ms later
-                    setTimeout(() => {
-                        // Check if session is still valid (no restart happened)
-                        if (this.sessionId !== currentSessionId) {
-                            // Session changed (restart was called), skip this inflation drop
-                            return;
-                        }
+                // Schedule inflation 500ms later
+                setTimeout(() => {
+                    // Check if session is still valid (no restart happened)
+                    if (this.sessionId !== currentSessionId) {
+                        // Session changed (restart was called), skip this inflation
+                        return;
+                    }
 
-                        // Apply inflation and get dollar amount lost
-                        const inflationDollars = this.simulationManager.applyMonthlyInflation();
+                    // Apply inflation (updates cumulative factor for PP calculation)
+                    const inflationDollars = this.simulationManager.applyMonthlyInflation();
 
-                        // Create visual inflation drop
-                        if (inflationDollars > 0) {
-                            this.createInflationDrop(inflationDollars);
-                        }
-                    }, this.config.INFLATION_DELAY_MS);
-                }
+                    // Only create visual inflation drop in USD mode (BTC doesn't leak)
+                    if (this.stateManager.getSavingsVehicle() === 'usd' && inflationDollars > 0) {
+                        this.createInflationDrop(inflationDollars);
+                    }
+                }, this.config.INFLATION_DELAY_MS);
 
                 // Create ripple effect (skip for invisible drops)
                 if (!isInvisible) {

@@ -208,7 +208,7 @@ class StateManager {
     
     /**
      * Apply monthly inflation to purchasing power
-     * Updates cumulative inflation factor and recalculates fill level
+     * Updates cumulative inflation factor and recalculates fill level (USD mode only)
      * Uses current inflation rate from SettingsCache
      * @returns {number} Dollar amount of purchasing power lost to inflation
      */
@@ -216,19 +216,22 @@ class StateManager {
         const monthlyRate = this.getMonthlyInflationRate();
         const oldFactor = this.state.cumulativeInflationFactor;
 
-        // Update cumulative inflation factor
+        // Update cumulative inflation factor (for PP calculation in both modes)
         const newFactor = oldFactor * (1 + monthlyRate);
         this.setState({ cumulativeInflationFactor: newFactor });
 
         // Debug: Log cumulative inflation factor
         console.log(`💸 Inflation applied: Factor ${oldFactor.toFixed(6)} → ${newFactor.toFixed(6)} (${((newFactor - 1) * 100).toFixed(2)}% cumulative erosion)`);
 
-        // Recalculate fill level from purchasing power
-        const purchasingPower = this.state.totalSavings / newFactor;
-        const newFillLevel = (purchasingPower / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
-        this.updateFillLevel(newFillLevel);
+        // Only recalculate fill level in USD mode (BTC fill level is independent of inflation)
+        if (this.state.savingsVehicle === 'usd') {
+            // Recalculate fill level from purchasing power
+            const purchasingPower = this.state.totalSavings / newFactor;
+            const newFillLevel = (purchasingPower / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
+            this.updateFillLevel(newFillLevel);
+        }
 
-        // Calculate inflation loss in dollars (for visual drop)
+        // Calculate inflation loss in dollars (for visual drop in USD mode)
         const inflationDollars = calculateInflationLossFromFactor(
             this.state.totalSavings,
             oldFactor,
@@ -400,12 +403,22 @@ class StateManager {
             const btcAmount = convertUsdToBtc(usdAmount, currentDate);
             this.setState({ totalSavingsBtc: btcAmount });
 
+            // Recalculate fill level based on BTC capacity
+            const fullPigBtc = this.state.fullPigBtcCapacity;
+            const newFillLevel = (btcAmount / fullPigBtc) * 100;
+            this.updateFillLevel(Math.min(CONFIG.MAX_FILL_PERCENTAGE, newFillLevel));
+
             console.log(`💱 Converted $${usdAmount.toLocaleString()} → ${btcAmount.toFixed(8)} BTC at ${currentDate.toISOString().split('T')[0]}`);
         } else if (fromVehicle === 'btc' && toVehicle === 'usd') {
             // BTC → USD: Convert total BTC savings to USD at current date
             const btcAmount = this.state.totalSavingsBtc;
             const usdAmount = convertBtcToUsd(btcAmount, currentDate);
             this.setState({ totalSavings: usdAmount });
+
+            // Recalculate fill level based on purchasing power (USD adjusted by inflation)
+            const purchasingPower = usdAmount / this.state.cumulativeInflationFactor;
+            const newFillLevel = (purchasingPower / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
+            this.updateFillLevel(Math.min(CONFIG.MAX_FILL_PERCENTAGE, newFillLevel));
 
             console.log(`💱 Converted ${btcAmount.toFixed(8)} BTC → $${usdAmount.toLocaleString()} at ${currentDate.toISOString().split('T')[0]}`);
         }
