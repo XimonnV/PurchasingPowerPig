@@ -42,11 +42,11 @@ body.mobile-mode {
     display: block;
 }
 
-/* Panel container for right-side panels - uses flexbox for automatic spacing */
+/* Panel container for left-side panels - uses flexbox for automatic spacing */
 .panel-container {
     position: absolute;
     top: 20px;
-    right: 20px;
+    left: 20px;
     display: flex;
     flex-direction: column;
     gap: 20px; /* Automatic 20px spacing between all panels */
@@ -56,10 +56,10 @@ body.mobile-mode {
 body.mobile-mode .panel-container {
     top: calc(var(--window-height) - 108px); /* Position top at window bottom minus (88px savings + 20px margin) */
     bottom: auto; /* Override bottom positioning */
-    /* Keep right: 20px and min-width: 200px from base styles */
+    /* Keep left: 20px and min-width: 200px from base styles */
 }
 
-/* Default order for desktop (right side panels) */
+/* Default order for desktop (left side panels) */
 .controls {
     order: 1;
 }
@@ -82,13 +82,50 @@ body.mobile-mode .savings-display {
 }
 
 body.mobile-mode .info-display {
-    order: 3;
+    order: 4;
+}
+
+/* Chart panel - positioned on right side (desktop), separate container */
+.chart-panel {
+    position: fixed; /* Fixed to viewport on desktop */
+    top: 20px;
+    right: 20px;
+    min-width: 220px;
+    width: 400px; /* Default width, can be expanded if more space available */
+    max-width: calc(100vw - 300px - 40px); /* Max: viewport - left panels/animation - margins */
+    height: 390px; /* Fixed height to match controls panel */
+    overflow: auto; /* Allow scrolling if content exceeds height */
+    z-index: 10; /* Above animation but below modals */
+}
+
+/* Hide chart panel in start state */
+body.start-state .chart-panel {
+    display: none;
+}
+
+/* Mobile mode: chart panel below other panels with full width */
+body.mobile-mode .chart-panel {
+    position: absolute; /* Positioned below panel-container */
+    /* Panel-container starts at (vh - 108px), panels are ~600px tall total, plus 20px gap */
+    top: calc(var(--window-height) + 520px); /* Approximately below all panels with gap */
+    left: 20px; /* Left margin */
+    right: auto; /* Allow width to be set explicitly */
+    width: calc(100vw - 40px); /* Full viewport width minus left/right margins */
+    max-width: none; /* Remove max-width restriction */
+    height: 390px; /* Maintain fixed height from desktop */
+}
+
+/* Animation container - wraps all visual elements */
+.animation-container {
+    position: relative;
+    /* No explicit dimensions - children maintain their absolute positioning */
 }
 
 /* Shared panel styling */
 .controls,
 .savings-display,
-.info-display {
+.info-display,
+.chart-panel {
     background: rgba(255, 255, 255, 0.9);
     padding: 15px;
     border-radius: 10px;
@@ -209,7 +246,7 @@ input[type="range"] {
 }
 
 button {
-    background-color: #4CAF50;
+    background-color: #2196F3; /* Blue */
     color: white;
     border: none;
     padding: 8px 16px;
@@ -220,25 +257,25 @@ button {
 }
 
 button:hover {
-    background-color: #45a049;
+    background-color: #1976D2; /* Darker blue */
 }
 
 button:active {
-    background-color: #3d8b40;
+    background-color: #1565C0; /* Even darker blue */
     transform: translateY(1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 button.paused {
-    background-color: #ff9800;
+    background-color: #757575; /* Gray for paused state */
 }
 
 button.paused:hover {
-    background-color: #fb8c00;
+    background-color: #616161; /* Darker gray */
 }
 
 button.paused:active {
-    background-color: #f57c00;
+    background-color: #424242; /* Even darker gray */
 }
 
 /* Savings Vehicle Toggle - iOS-style switch */
@@ -248,11 +285,16 @@ button.paused:active {
     align-items: center;
     width: 120px;
     height: 25px;
-    background-color: #4CAF50;
+    background-color: #4CAF50; /* Default: USD green */
     border-radius: 5px;
     padding: 2px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+}
+
+/* BTC mode: Bitcoin orange background */
+.savings-vehicle-toggle.btc-mode {
+    background-color: #F7931A;
 }
 
 .savings-vehicle-toggle input[type="radio"] {

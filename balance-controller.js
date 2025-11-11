@@ -167,12 +167,19 @@ class BalanceController {
      */
     handleStartAmountChange(e) {
         const newValue = parseInt(e.target.value);
-        
+
         // Update display value
         if (this.elements.startAmountValue) {
             this.elements.startAmountValue.textContent = newValue;
         }
-        
+
+        // Don't reset if simulation is finished (wait for manual restart)
+        const isFinished = this.stateManager.get('isSimulationFinished');
+        if (isFinished) {
+            this.checkBalance();
+            return;
+        }
+
         // Only reset if value actually changed (prevent duplicate resets)
         if (this.stateManager) {
             const currentSavings = this.stateManager.get('totalSavings');
@@ -182,7 +189,7 @@ class BalanceController {
                 this.stateManager.reset(newValue);
             }
         }
-        
+
         // Check balance state
         this.checkBalance();
     }
@@ -251,21 +258,25 @@ class BalanceController {
      * Calculates optimal starting amount based on current savings and inflation
      */
     handleBalanceStartAmount() {
+        // Don't reset if simulation is finished (wait for manual restart)
+        const isFinished = this.stateManager.get('isSimulationFinished');
+        if (isFinished) return;
+
         const monthlySavings = parseInt(this.elements.savingsSlider.value);
         const annualInflationPercent = parseFloat(this.elements.inflationSlider.value);
-        
+
         // Calculate balanced amount using financial-math.js function
         const calculatedAmount = calculateBalancedStartAmount(monthlySavings, annualInflationPercent);
-        
+
         // Set all buttons to balanced icon immediately (no flip)
         this.setBalanceIcon(this.config.images.balance, false);
-        
+
         // Set the slider value
         this.elements.startAmountSlider.value = calculatedAmount;
-        
+
         // Trigger input event to update settingsCache and display
         this.elements.startAmountSlider.dispatchEvent(new Event('input', { bubbles: true }));
-        
+
         // IMPORTANT: Reset state manager with calculated value directly
         // Don't rely on settingsCache being updated yet (race condition)
         if (this.stateManager) {

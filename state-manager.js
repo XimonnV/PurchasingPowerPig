@@ -32,6 +32,7 @@ class StateManager {
             lastDropTime: 0,                        // Timestamp of last drop creation
             isPaused: false,                        // Animation pause state
             isStartState: true,                     // Whether in initial start/welcome state
+            isSimulationFinished: false,            // Whether simulation reached 360 months
             
             // UI state
             previousWidth: window.innerWidth,
@@ -499,6 +500,7 @@ class StateManager {
             mugFillLevel: CONFIG.MIN_FILL_PERCENTAGE,
             lastDropTime: 0,
             isPaused: false,
+            isSimulationFinished: false,          // Reset finished state
             currentSimDate: new Date(startDate),
             simulationStartDate: new Date(startDate),
             fullPigBtcCapacity: fullPigBtc,
@@ -515,6 +517,21 @@ class StateManager {
         this.reset(this.getStartingAmount());
     }
     
+    /**
+     * Get months elapsed since simulation started
+     * @returns {number} Number of months elapsed
+     */
+    getMonthsElapsed() {
+        const startDate = this.state.simulationStartDate;
+        const currentDate = this.state.currentSimDate;
+
+        // Calculate month difference
+        const yearDiff = currentDate.getFullYear() - startDate.getFullYear();
+        const monthDiff = currentDate.getMonth() - startDate.getMonth();
+
+        return yearDiff * 12 + monthDiff;
+    }
+
     /**
      * Get formatted current date for display
      * @returns {string} Formatted date string (e.g., "2025 October")

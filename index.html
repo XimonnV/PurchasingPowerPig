@@ -7,38 +7,41 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="start-state">
-    <!-- Banner image at top center -->
-    <div class="banner-container scaled-element">
-        <img src="ppp-banner.png" alt="Purchasing Power Pig Banner">
+    <!-- Animation container - wraps all visual animation elements -->
+    <div class="animation-container">
+        <!-- Banner image at top center -->
+        <div class="banner-container scaled-element">
+            <img src="ppp-banner.png" alt="Purchasing Power Pig Banner">
+        </div>
+
+        <!-- Start state overlay (50% black) -->
+        <div class="start-overlay" id="startOverlay"></div>
+
+        <!-- Pig image container -->
+        <div class="pig-container scaled-element">
+            <img src="piggy.png" alt="Piggy Bank">
+        </div>
+
+        <!-- Banker image container -->
+        <div class="banker-container scaled-element">
+            <img src="banker.png" alt="Banker">
+        </div>
+
+        <!-- Banker's mug container -->
+        <div class="banker-mug-container scaled-element">
+            <div class="banker-mug-fill"></div>
+        </div>
+
+        <!-- Invisible oval container for drop fill effect -->
+        <div class="pig-oval-container scaled-element">
+            <div class="pig-oval-fill"></div>
+        </div>
+
+        <!-- Percentage display centered on pig -->
+        <div class="pig-percentage scaled-element" id="pigPercentageDisplay">0%</div>
     </div>
-    
-    <!-- Start state overlay (50% black) -->
-    <div class="start-overlay" id="startOverlay"></div>
-    
-    <!-- Pig image container -->
-    <div class="pig-container scaled-element">
-        <img src="piggy.png" alt="Piggy Bank">
-    </div>
-    
-    <!-- Banker image container -->
-    <div class="banker-container scaled-element">
-        <img src="banker.png" alt="Banker">
-    </div>
-    
-    <!-- Banker's mug container -->
-    <div class="banker-mug-container scaled-element">
-        <div class="banker-mug-fill"></div>
-    </div>
-    
-    <!-- Invisible oval container for drop fill effect -->
-    <div class="pig-oval-container scaled-element">
-        <div class="pig-oval-fill"></div>
-    </div>
-    
-    <!-- Percentage display centered on pig -->
-    <div class="pig-percentage scaled-element" id="pigPercentageDisplay">0%</div>
-    
-    <!-- Panel container for right-side panels with automatic spacing -->
+
+    <!-- Panel container for left-side panels with automatic spacing -->
     <div class="panel-container">
         <div class="controls">
             <div class="control-group">
@@ -50,7 +53,7 @@
             </div>
 
             <div class="control-group">
-                <label>Save in:</label>
+                <label>Save in (exchange):</label>
                 <div class="savings-vehicle-toggle" id="savingsVehicleToggle">
                     <input type="radio" id="savingsVehicleUsd" name="savingsVehicle" value="usd" checked>
                     <label for="savingsVehicleUsd" class="toggle-option">$</label>
@@ -103,6 +106,14 @@
         </div>
     </div>
 
+    <!-- Chart panel - separate container, positioned on right (desktop) or below panels (mobile) -->
+    <div class="chart-panel">
+        <!-- Empty for now - will contain chart content later -->
+    </div>
+
+    <!-- Load Plotly.js CDN for charting -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+
     <!-- Load JavaScript modules in dependency order -->
     <!-- 1. CONFIG - must load first -->
     <script src="config.js"></script>
@@ -124,6 +135,7 @@
     <script src="savings-display-handler.js"></script>
     <script src="date-display-handler.js"></script>
     <script src="ui-display-handler.js"></script>
+    <script src="chart-handler.js"></script>
     <script src="display-manager.js"></script>
 
     <!-- 7. Effect Manager - handles visual effects (ripples, etc.) -->

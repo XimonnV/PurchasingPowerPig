@@ -38,7 +38,8 @@ class SavingsVehicleController {
         // DOM elements
         this.elements = {
             usdRadio: null,
-            btcRadio: null
+            btcRadio: null,
+            toggleContainer: null
         };
     }
 
@@ -63,6 +64,7 @@ class SavingsVehicleController {
     cacheElements() {
         this.elements.usdRadio = document.getElementById(this.config.elementIds.savingsVehicleUsd);
         this.elements.btcRadio = document.getElementById(this.config.elementIds.savingsVehicleBtc);
+        this.elements.toggleContainer = document.getElementById('savingsVehicleToggle');
     }
 
     /**
@@ -123,6 +125,9 @@ class SavingsVehicleController {
             this.stateManager.setSavingsVehicle(newVehicle);
         }
 
+        // Update toggle background color
+        this.updateToggleBackgroundColor();
+
         // Save to cookie
         this.saveToCookie();
 
@@ -141,6 +146,26 @@ class SavingsVehicleController {
             if (this.elements.btcRadio) {
                 this.elements.btcRadio.checked = true;
             }
+        }
+
+        // Update toggle background color
+        this.updateToggleBackgroundColor();
+    }
+
+    /**
+     * Update toggle background color based on current vehicle
+     * USD mode: green (#4CAF50)
+     * BTC mode: orange (#F7931A)
+     */
+    updateToggleBackgroundColor() {
+        if (!this.elements.toggleContainer) return;
+
+        if (this.currentVehicle === this.config.savingsVehicle.options.BTC) {
+            // BTC mode: add orange class
+            this.elements.toggleContainer.classList.add('btc-mode');
+        } else {
+            // USD mode: remove orange class (reverts to green)
+            this.elements.toggleContainer.classList.remove('btc-mode');
         }
     }
 

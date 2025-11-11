@@ -91,7 +91,8 @@ class TimingManager {
         // Create drops at regular intervals
         this.intervalId = setInterval(() => {
             const isPaused = this.stateManager.get('isPaused');
-            if (!isPaused) {
+            const isFinished = this.stateManager.get('isSimulationFinished');
+            if (!isPaused && !isFinished) {
                 this.createDropCallback();
             }
         }, this.config.DROP_INTERVAL_MS);

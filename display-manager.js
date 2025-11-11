@@ -17,6 +17,7 @@
  * - savings-display-handler.js (savings panel)
  * - date-display-handler.js (date display)
  * - ui-display-handler.js (UI elements)
+ * - chart-handler.js (Plotly.js chart)
  * 
  * Example:
  * ```javascript
@@ -39,7 +40,8 @@ class DisplayManager {
             liquid: new LiquidDisplayHandler(config, stateManager),
             savings: new SavingsDisplayHandler(config, stateManager),
             date: new DateDisplayHandler(config, stateManager),
-            ui: new UIDisplayHandler(config, stateManager)
+            ui: new UIDisplayHandler(config, stateManager),
+            chart: new ChartHandler(config, stateManager)
         };
         
         // Store unsubscribe functions for cleanup
@@ -66,6 +68,7 @@ class DisplayManager {
         this.handlers.savings.initialize();
         this.handlers.date.initialize();
         this.handlers.ui.initialize();
+        this.handlers.chart.initialize();
     }
     
     /**
@@ -176,7 +179,7 @@ class DisplayManager {
     
     /**
      * Get a specific handler
-     * @param {string} name - Handler name ('liquid', 'savings', 'date', 'ui')
+     * @param {string} name - Handler name ('liquid', 'savings', 'date', 'ui', 'chart')
      * @returns {Object} Handler instance
      */
     getHandler(name) {

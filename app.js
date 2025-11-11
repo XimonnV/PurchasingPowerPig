@@ -376,6 +376,16 @@ class PurchasingPowerPigApp {
                 // Always advance month (even with $0 savings)
                 this.simulationManager.advanceMonth();
 
+                // Check if simulation reached 360 months (30 years)
+                const monthsElapsed = this.stateManager.getMonthsElapsed();
+                if (monthsElapsed >= 360) {
+                    // Stop simulation
+                    this.stateManager.setState({ isSimulationFinished: true });
+                    this.timingManager.stop();
+                    console.log('✅ Simulation finished: 360 months (30 years) completed');
+                    return; // Don't apply inflation after finishing
+                }
+
                 // Only apply inflation if in USD mode (BTC has no inflation)
                 if (this.stateManager.getSavingsVehicle() === 'usd') {
                     // Capture current session ID to check if restart happened before inflation triggers

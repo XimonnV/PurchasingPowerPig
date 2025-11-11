@@ -56,8 +56,14 @@ class UIDisplayHandler {
             this.updateLeakOvalVisibility();
         });
 
+        // Subscribe to simulation finished state to hide/show pause button
+        this.state.subscribe('isSimulationFinished', () => {
+            this.updatePauseButtonVisibility();
+        });
+
         // Update displays to match current state
         this.updatePauseButton();
+        this.updatePauseButtonVisibility();
         this.updateInfoPanel();
         this.updateLeakOval();
         this.updateLeakOvalVisibility();
@@ -119,7 +125,16 @@ class UIDisplayHandler {
     createLeakOval() {
         const leakOval = document.createElement('div');
         leakOval.className = this.config.cssClasses.leakOval;
-        document.body.appendChild(leakOval);
+
+        // Append to animation-container instead of body to share positioning context with pig/pig-oval
+        const animationContainer = document.querySelector('.animation-container');
+        if (animationContainer) {
+            animationContainer.appendChild(leakOval);
+        } else {
+            // Fallback to body if animation-container doesn't exist
+            document.body.appendChild(leakOval);
+        }
+
         return leakOval;
     }
 
@@ -141,6 +156,22 @@ class UIDisplayHandler {
             this.elements.pauseButton.classList.add(this.config.cssClasses.paused);
         } else {
             this.elements.pauseButton.classList.remove(this.config.cssClasses.paused);
+        }
+    }
+
+    /**
+     * Update pause button visibility based on simulation finished state
+     * Hide pause button when simulation is finished (360 months reached)
+     */
+    updatePauseButtonVisibility() {
+        if (!this.elements.pauseButton) return;
+
+        const isFinished = this.state.get('isSimulationFinished');
+
+        if (isFinished) {
+            this.elements.pauseButton.style.display = 'none';
+        } else {
+            this.elements.pauseButton.style.display = '';
         }
     }
 
