@@ -47,10 +47,16 @@ class LiquidDisplayHandler {
     initialize() {
         // Cache DOM elements
         this.cacheElements();
-        
+
+        // Subscribe to savings vehicle changes to update pig fill color
+        this.state.subscribe('savingsVehicle', () => {
+            this.updatePigFillColor();
+        });
+
         // Update displays to match current state
         this.updatePigDisplay();
         this.updateMugDisplay();
+        this.updatePigFillColor();
     }
     
     /**
@@ -99,15 +105,35 @@ class LiquidDisplayHandler {
      */
     updateMugDisplay() {
         const mugFillLevel = this.state.get('mugFillLevel');
-        
+
         // Update mug fill height
         if (this.elements.bankerMugFill) {
             this.elements.bankerMugFill.style.height = mugFillLevel + '%';
         }
-        
+
         // Update debug display for mug fill
         if (this.elements.debugMugValue) {
             this.elements.debugMugValue.textContent = mugFillLevel.toFixed(this.config.display.debugDecimalPlaces);
+        }
+    }
+
+    /**
+     * Update the pig fill color based on current savings vehicle
+     * USD: green gradient, BTC: orange gradient
+     */
+    updatePigFillColor() {
+        if (!this.elements.pigOvalFill) return;
+
+        const vehicle = this.state.getSavingsVehicle();
+
+        if (vehicle === this.config.savingsVehicle.options.BTC) {
+            // BTC mode: orange gradient
+            this.elements.pigOvalFill.style.background =
+                `linear-gradient(to top, ${this.config.colors.btcFillStart}, ${this.config.colors.btcFillEnd})`;
+        } else {
+            // USD mode: green gradient (default)
+            this.elements.pigOvalFill.style.background =
+                `linear-gradient(to top, ${this.config.colors.usdFillStart}, ${this.config.colors.usdFillEnd})`;
         }
     }
     

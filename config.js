@@ -50,8 +50,24 @@ const CONFIG = {
             roundTo: 10  // For balance calculations
         }
     },
-    
-    
+
+
+    // ========================================
+    // SAVINGS VEHICLE
+    // ========================================
+
+    savingsVehicle: {
+        /** Default savings vehicle */
+        default: 'usd',
+
+        /** Available options */
+        options: {
+            USD: 'usd',
+            BTC: 'btc'
+        }
+    },
+
+
     // ========================================
     // ANIMATION TIMING
     // ========================================
@@ -269,7 +285,12 @@ const CONFIG = {
         balanceSavings: 'balanceSavings',
         restartButton: 'restartButton',
         pauseButton: 'pauseButton',
-        
+
+        // Savings Vehicle Toggle
+        savingsVehicleToggle: 'savingsVehicleToggle',
+        savingsVehicleUsd: 'savingsVehicleUsd',
+        savingsVehicleBtc: 'savingsVehicleBtc',
+
         // Debug (if present)
         debugFillValue: 'debugFillValue',
         debugMugValue: 'debugMugValue',
@@ -291,11 +312,28 @@ const CONFIG = {
         leakOval: '.leak-oval'
     },
     
-    
+
+    // ========================================
+    // SAVINGS VEHICLE
+    // ========================================
+
+    savingsVehicle: {
+        options: {
+            USD: 'usd',
+            BTC: 'btc'
+        },
+        default: 'usd',
+        labels: {
+            usd: '$',
+            btc: '₿'
+        }
+    },
+
+
     // ========================================
     // BUTTON TEXT
     // ========================================
-    
+
     buttonText: {
         pause: 'Pause',
         resume: 'Resume'
@@ -305,10 +343,25 @@ const CONFIG = {
     // ========================================
     // IMAGE FILES
     // ========================================
-    
+
     images: {
         balance: 'balance.png',
         balanceTilt: 'balance-tilt.png'
+    },
+
+
+    // ========================================
+    // COLORS
+    // ========================================
+
+    colors: {
+        // USD savings mode (green)
+        usdFillStart: '#2e7d32',
+        usdFillEnd: '#4caf50',
+
+        // BTC savings mode (orange)
+        btcFillStart: '#F7931A',
+        btcFillEnd: '#FFA726'
     }
 };
 

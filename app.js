@@ -46,6 +46,7 @@ class PurchasingPowerPigApp {
         // UI controllers
         this.balanceController = null;
         this.startStateController = null;
+        this.savingsVehicleController = null;
 
         // Session tracking (increments on restart to invalidate pending callbacks)
         this.sessionId = 0;
@@ -147,6 +148,10 @@ class PurchasingPowerPigApp {
         this.startStateController.initialize();
         console.log('✓ StartStateController initialized');
 
+        this.savingsVehicleController = new SavingsVehicleController(this.config, this.stateManager);
+        this.savingsVehicleController.initialize();
+        console.log('✓ SavingsVehicleController initialized');
+
         // 11. Initialize simulation state from starting amount
         this.simulationManager.initializeFromStartingAmount();
         console.log('✓ Simulation state initialized');
@@ -189,6 +194,7 @@ class PurchasingPowerPigApp {
         window.mugContainer = this.mugContainer;
         window.balanceController = this.balanceController;
         window.startStateController = this.startStateController;
+        window.savingsVehicleController = this.savingsVehicleController;
 
         console.log('✓ Managers exposed globally for debugging');
     }
@@ -324,15 +330,19 @@ class PurchasingPowerPigApp {
 
     /**
      * Create a new savings drop (falls from top to pig)
+     * Creates invisible drop if savings is 0 (to advance month and apply inflation)
      */
     createSavingsDrop() {
         const savings = this.stateManager.getMonthlySavings();
 
-        // No drop if savings is 0
-        if (savings === 0) return;
+        // Use invisible drop size if savings is 0
+        const isInvisible = (savings === 0);
+        const dropAmount = isInvisible ? 0 : savings;
 
-        // Calculate drop size
-        const size = this.calculateDropSize(savings);
+        // Calculate drop size (use invisibleDropSize for $0 savings)
+        const size = isInvisible
+            ? this.config.drop.invisibleDropSize * this.getScaleFactor()
+            : this.calculateDropSize(savings);
 
         // Get drop spawn position from pig container
         const spawnPos = this.pigContainer.getDropSpawnPosition(size);
@@ -347,39 +357,54 @@ class PurchasingPowerPigApp {
         );
         const renderer = new DropRenderer(physics, size, this.config);
 
+        // Make drop invisible if savings is 0
+        if (isInvisible) {
+            const dropElement = renderer.getElement();
+            if (dropElement) {
+                dropElement.style.opacity = '0';
+            }
+        }
+
         // Create drop controller with landing callback
         const controller = new DropController(physics, renderer, this.pigContainer, size, {
             onLand: (ctrl) => {
-                // Add monthly savings when drop lands
-                this.simulationManager.addMonthlySavingsToPig();
+                // Add monthly savings when drop lands (skip if $0)
+                if (!isInvisible) {
+                    this.simulationManager.addMonthlySavingsToPig();
+                }
 
-                // Advance month
+                // Always advance month (even with $0 savings)
                 this.simulationManager.advanceMonth();
 
-                // Capture current session ID to check if restart happened before inflation triggers
-                const currentSessionId = this.sessionId;
+                // Only apply inflation if in USD mode (BTC has no inflation)
+                if (this.stateManager.getSavingsVehicle() === 'usd') {
+                    // Capture current session ID to check if restart happened before inflation triggers
+                    const currentSessionId = this.sessionId;
 
-                // Schedule inflation 500ms later
-                setTimeout(() => {
-                    // Check if session is still valid (no restart happened)
-                    if (this.sessionId !== currentSessionId) {
-                        // Session changed (restart was called), skip this inflation drop
-                        return;
+                    // Schedule inflation 500ms later
+                    setTimeout(() => {
+                        // Check if session is still valid (no restart happened)
+                        if (this.sessionId !== currentSessionId) {
+                            // Session changed (restart was called), skip this inflation drop
+                            return;
+                        }
+
+                        // Apply inflation and get dollar amount lost
+                        const inflationDollars = this.simulationManager.applyMonthlyInflation();
+
+                        // Create visual inflation drop
+                        if (inflationDollars > 0) {
+                            this.createInflationDrop(inflationDollars);
+                        }
+                    }, this.config.INFLATION_DELAY_MS);
+                }
+
+                // Create ripple effect (skip for invisible drops)
+                if (!isInvisible) {
+                    const containerElement = this.pigContainer.getElement();
+                    if (containerElement && this.effectManager) {
+                        this.effectManager.createRipple(containerElement, this.config.cssClasses.pigRipple);
                     }
-
-                    // Apply inflation and get dollar amount lost
-                    const inflationDollars = this.simulationManager.applyMonthlyInflation();
-
-                    // Create visual inflation drop
-                    if (inflationDollars > 0) {
-                        this.createInflationDrop(inflationDollars);
-                    }
-                }, this.config.INFLATION_DELAY_MS);
-
-                // Create ripple effect
-                const containerElement = this.pigContainer.getElement();
-                if (containerElement && this.effectManager) {
-                    this.effectManager.createRipple(containerElement, this.config.cssClasses.pigRipple);
                 }
             }
         });

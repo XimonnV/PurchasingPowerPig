@@ -44,55 +44,23 @@ class SimulationManager {
 
     /**
      * Add monthly savings to pig fill level
+     * Delegates to StateManager which handles cumulative inflation factor
      * Uses current monthly savings from settings cache
      * @returns {boolean} Whether savings were added (false if pig full or savings is 0)
      */
     addMonthlySavingsToPig() {
-        const monthlySavings = this.stateManager.getMonthlySavings();
-
-        if (monthlySavings === 0) return false;
-
-        // Add to total savings
-        const currentTotal = this.stateManager.get('totalSavings');
-        this.stateManager.setState({
-            totalSavings: currentTotal + monthlySavings
-        });
-
-        // Add to fill level if not full
-        const fillLevel = this.stateManager.get('fillLevel');
-        if (fillLevel < this.config.MAX_FILL_PERCENTAGE) {
-            const dropVolume = calculatePigDropVolume(monthlySavings);
-            const newFillLevel = Math.min(
-                this.config.MAX_FILL_PERCENTAGE,
-                fillLevel + dropVolume
-            );
-            this.stateManager.setState({ fillLevel: newFillLevel });
-            return true;
-        }
-
-        return false;
+        // Delegate to state manager (which uses cumulative inflation factor)
+        return this.stateManager.addMonthlySavingsToPig();
     }
 
     /**
-     * Apply monthly inflation to pig fill level
-     * Reduces fill level by monthly inflation rate
-     * @returns {number} Dollar amount lost to inflation
+     * Apply monthly inflation to purchasing power
+     * Delegates to StateManager which handles cumulative inflation factor
+     * @returns {number} Dollar amount of purchasing power lost to inflation
      */
     applyMonthlyInflation() {
-        const monthlyRate = this.stateManager.getMonthlyInflationRate();
-        const fillLevel = this.stateManager.get('fillLevel');
-
-        const inflationReduction = fillLevel * monthlyRate; // percentage points lost
-        const inflationDollars = fillPercentageToDollars(inflationReduction, 'pig');
-
-        // Reduce fill level
-        const newFillLevel = Math.max(
-            this.config.MIN_FILL_PERCENTAGE,
-            fillLevel * (1 - monthlyRate)
-        );
-        this.stateManager.setState({ fillLevel: newFillLevel });
-
-        return inflationDollars;
+        // Delegate to state manager (which uses cumulative inflation factor)
+        return this.stateManager.applyMonthlyInflation();
     }
 
     /**
@@ -136,55 +104,37 @@ class SimulationManager {
 
     /**
      * Get current purchasing power value in dollars
-     * @returns {number} Purchasing power in dollars (based on fillLevel)
+     * Delegates to StateManager which uses cumulative inflation factor
+     * @returns {number} Purchasing power in dollars
      */
     getPPValue() {
-        const fillLevel = this.stateManager.get('fillLevel');
-        return Math.round(fillPercentageToDollars(fillLevel, 'pig'));
+        return this.stateManager.getPPValue();
     }
 
     /**
      * Get percentage of purchasing power lost
+     * Delegates to StateManager which uses cumulative inflation factor
      * @returns {number} Percentage (0-100)
      */
     getPurchasingPowerLostPercentage() {
-        const totalSavings = this.stateManager.get('totalSavings');
-        const totalBankSavings = this.stateManager.get('totalBankSavings');
-
-        if (totalSavings === 0) return 0;
-        return Math.round((totalBankSavings / totalSavings) * 100);
+        return this.stateManager.getPurchasingPowerLostPercentage();
     }
 
     /**
      * Reset simulation to initial state
+     * Delegates to StateManager which handles cumulative inflation factor initialization
      * @param {number|null} startAmount - Starting amount (null = use current from settings)
      */
     reset(startAmount = null) {
-        // Use provided amount or get from settings cache
-        const amount = startAmount !== null ? startAmount : this.stateManager.getStartingAmount();
-
-        // Calculate initial fill level
-        const initialFillLevel = (amount / this.config.PIG_CAPACITY_DOLLARS) * 100;
-
-        // Set simulation start date to now
-        const startDate = new Date();
-
-        this.stateManager.setState({
-            fillLevel: initialFillLevel,
-            totalSavings: amount,
-            totalBankSavings: 0,
-            mugFillLevel: this.config.MIN_FILL_PERCENTAGE,
-            isPaused: false,
-            currentSimDate: new Date(startDate),
-            simulationStartDate: new Date(startDate)
-        });
+        // Delegate to state manager (which initializes cumulative inflation factor)
+        this.stateManager.reset(startAmount);
     }
 
     /**
      * Initialize from starting amount (convenience method)
      */
     initializeFromStartingAmount() {
-        this.reset(this.stateManager.getStartingAmount());
+        this.stateManager.initializeFromStartingAmount();
     }
 }
 

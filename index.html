@@ -48,7 +48,18 @@
                     <button id="balanceSavings" class="balance-button" aria-label="Balance"></button>
                 </div>
             </div>
-            
+
+            <div class="control-group">
+                <label>Save in:</label>
+                <div class="savings-vehicle-toggle" id="savingsVehicleToggle">
+                    <input type="radio" id="savingsVehicleUsd" name="savingsVehicle" value="usd" checked>
+                    <label for="savingsVehicleUsd" class="toggle-option">$</label>
+                    <input type="radio" id="savingsVehicleBtc" name="savingsVehicle" value="btc">
+                    <label for="savingsVehicleBtc" class="toggle-option">₿</label>
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+
             <div class="control-group">
                 <label>Starting Amount: $<span id="startAmountValue">50000</span></label>
                 <div class="slider-row">
@@ -56,7 +67,7 @@
                     <button id="balanceStartAmount" class="balance-button" aria-label="Balance"></button>
                 </div>
             </div>
-            
+
             <div class="control-group">
                 <label class="label-deemphasized"><i>Purchasing Power loss</i></label>
                 <label>Debasement + CPI: <span id="inflationValue">7</span>%</label>
@@ -65,7 +76,7 @@
                     <button id="balanceInflation" class="balance-button" aria-label="Balance"></button>
                 </div>
             </div>
-            
+
             <div class="control-group">
                 <button id="restartButton">Restart</button>
                 <button id="pauseButton">Pause</button>
@@ -121,6 +132,7 @@
     <!-- 8. Utilities (Sprint 3 extraction) -->
     <script src="drop-size-calculator.js"></script>
     <script src="formatters.js"></script>
+    <script src="cookie-settings.js"></script>
 
     <!-- 9. Drop System - modular drop components (Sprint 2 refactoring) -->
     <script src="drop-physics.js"></script>
@@ -134,6 +146,7 @@
     <!-- 10. UI Controllers - handle user interactions -->
     <script src="balance-controller.js"></script>
     <script src="start-state-controller.js"></script>
+    <script src="savings-vehicle-controller.js"></script>
 
     <!-- 11. Main Application Controller (Sprint 3) -->
     <script src="app.js"></script>

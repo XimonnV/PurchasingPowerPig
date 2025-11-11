@@ -51,10 +51,16 @@ class UIDisplayHandler {
         // Setup event listeners
         this.setupEventListeners();
 
+        // Subscribe to savings vehicle changes to update leak oval visibility
+        this.state.subscribe('savingsVehicle', () => {
+            this.updateLeakOvalVisibility();
+        });
+
         // Update displays to match current state
         this.updatePauseButton();
         this.updateInfoPanel();
         this.updateLeakOval();
+        this.updateLeakOvalVisibility();
     }
 
     /**
@@ -180,6 +186,25 @@ class UIDisplayHandler {
         // Update element size
         this.elements.leakOval.style.width = scaledWidth + 'px';
         this.elements.leakOval.style.height = scaledHeight + 'px';
+    }
+
+    /**
+     * Update leak oval visibility based on current savings vehicle
+     * USD: leak oval visible (inflation applies)
+     * BTC: leak oval hidden (BTC doesn't leak)
+     */
+    updateLeakOvalVisibility() {
+        if (!this.elements.leakOval) return;
+
+        const vehicle = this.state.getSavingsVehicle();
+
+        if (vehicle === this.config.savingsVehicle.options.BTC) {
+            // BTC mode: hide leak oval (BTC doesn't leak)
+            this.elements.leakOval.style.display = 'none';
+        } else {
+            // USD mode: show leak oval (inflation applies)
+            this.elements.leakOval.style.display = 'block';
+        }
     }
 
     /**

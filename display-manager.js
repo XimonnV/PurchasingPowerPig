@@ -74,25 +74,49 @@ class DisplayManager {
      * when state changes, without manual calls.
      */
     setupSubscriptions() {
-        // Pig fill level changes → update pig display + PP display
+        // Pig fill level changes → update pig display only
         this.unsubscribers.push(
             this.state.subscribe('fillLevel', () => {
                 this.handlers.liquid.updatePigDisplay();
-                this.handlers.savings.updatePPDisplay(); // PP value depends on fillLevel
             })
         );
-        
+
         // Mug fill level changes → update mug display
         this.unsubscribers.push(
             this.state.subscribe('mugFillLevel', () => {
                 this.handlers.liquid.updateMugDisplay();
             })
         );
-        
-        // Total savings changes → update savings display
+
+        // Total savings changes → update savings display and PP display
         this.unsubscribers.push(
             this.state.subscribe('totalSavings', () => {
                 this.handlers.savings.updateSavingsDisplay();
+                this.handlers.savings.updatePPDisplay(); // PP = totalSavings / cumulativeFactor
+            })
+        );
+
+        // Total BTC savings changes → update savings display and PP display (BTC mode)
+        this.unsubscribers.push(
+            this.state.subscribe('totalSavingsBtc', () => {
+                this.handlers.savings.updateSavingsDisplay();
+                this.handlers.savings.updatePPDisplay(); // PP = (totalSavingsBtc × price) / cumulativeFactor
+            })
+        );
+
+        // Savings vehicle changes → update savings display (switch $ ↔ ₿ format)
+        this.unsubscribers.push(
+            this.state.subscribe('savingsVehicle', () => {
+                this.handlers.savings.updateSavingsDisplay();
+                this.handlers.savings.updatePPDisplay();
+            })
+        );
+
+        // Cumulative inflation factor changes → update PP and savings displays
+        this.unsubscribers.push(
+            this.state.subscribe('cumulativeInflationFactor', () => {
+                this.handlers.savings.updatePPDisplay(); // PP = totalSavings / cumulativeFactor
+                this.handlers.savings.updateSavingsDisplay(); // PP Lost % uses cumulativeFactor
             })
         );
         
@@ -103,10 +127,12 @@ class DisplayManager {
             })
         );
         
-        // Simulation date changes → update date display
+        // Simulation date changes → update date display and PP display (BTC mode needs this)
         this.unsubscribers.push(
             this.state.subscribe('currentSimDate', () => {
                 this.handlers.date.updateDateDisplay();
+                this.handlers.savings.updatePPDisplay(); // BTC mode: PP depends on current date (BTC price)
+                this.handlers.savings.updateSavingsDisplay(); // PP Lost/Gained % depends on PP value
             })
         );
         

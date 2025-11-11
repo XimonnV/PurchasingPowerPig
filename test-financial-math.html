@@ -53,60 +53,14 @@
     <div class="summary" id="summary"></div>
     <div id="test-results"></div>
 
-    <script>
-        // Financial calculation functions (corrected versions)
-        
-        function calculateBalancedStartAmount(monthlySavings, annualInflationPercent) {
-            const annualInflation = annualInflationPercent / 100;
-            
-            let calculatedAmount;
-            
-            if (annualInflation === 0) {
-                calculatedAmount = 100000;
-            } else {
-                // For compound interest: monthly rate = (1 + annual)^(1/12) - 1
-                const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
-                // Starting amount = monthly savings / monthly rate
-                calculatedAmount = monthlySavings / monthlyRate;
-                calculatedAmount = Math.round(calculatedAmount / 1000) * 1000;
-                calculatedAmount = Math.max(0, Math.min(100000, calculatedAmount));
-            }
-            
-            return calculatedAmount;
-        }
-        
-        function calculateBalancedSavings(startingAmount, annualInflationPercent) {
-            const annualInflation = annualInflationPercent / 100;
-            
-            // For compound interest: monthly rate = (1 + annual)^(1/12) - 1
-            const monthlyRate = Math.pow(1 + annualInflation, 1/12) - 1;
-            // Monthly savings = starting amount * monthly rate
-            let calculatedSavings = startingAmount * monthlyRate;
-            calculatedSavings = Math.round(calculatedSavings / 10) * 10;
-            calculatedSavings = Math.max(0, Math.min(1000, calculatedSavings));
-            
-            return calculatedSavings;
-        }
-        
-        function calculateBalancedInflation(startingAmount, monthlySavings) {
-            let calculatedInflation;
-            
-            if (startingAmount === 0) {
-                calculatedInflation = 7;
-            } else {
-                // For compound interest: monthly rate = monthly savings / starting amount
-                const monthlyRate = monthlySavings / startingAmount;
-                // Annual rate = (1 + monthly rate)^12 - 1
-                const annualRate = Math.pow(1 + monthlyRate, 12) - 1;
-                calculatedInflation = annualRate * 100;
-                calculatedInflation = Math.round(calculatedInflation * 10) / 10;
-                calculatedInflation = Math.max(5, Math.min(20, calculatedInflation));
-            }
-            
-            return calculatedInflation;
-        }
+    <!-- Load CONFIG first (required by financial-math.js) -->
+    <script src="config.js"></script>
 
-        // Test framework
+    <!-- Load the actual financial-math.js to test real implementations -->
+    <script src="financial-math.js"></script>
+
+    <script>
+        // Test framework - all functions are loaded from financial-math.js
         const tests = [];
         let passCount = 0;
         let failCount = 0;
@@ -236,18 +190,339 @@
         test('Round Trip: Start → Savings → Inflation → Start', () => {
             const originalStart = 50000;
             const inflation = 7.0;
-            
+
             // Calculate balanced savings for this start amount and inflation
             const savings = calculateBalancedSavings(originalStart, inflation);
-            
+
             // Calculate balanced inflation from start and savings
             const calcInflation = calculateBalancedInflation(originalStart, savings);
-            
+
             // Calculate balanced start from savings and calculated inflation
             const calcStart = calculateBalancedStartAmount(savings, calcInflation);
-            
+
             // The recalculated start should be close to original (within rounding tolerance)
             assertApproxEquals(calcStart, originalStart, 2000, 'Round trip calculation should be consistent');
+        });
+
+        // Core Interest Rate Conversion Tests
+
+        test('Monthly Compound Rate Conversion', () => {
+            // Test converting 12% annual to monthly compound rate
+            const annualRate = 0.12; // 12%
+            const monthlyRate = getMonthlyCompoundRate(annualRate);
+
+            // Monthly rate should be approximately 0.9489% (0.009489)
+            // Verify: (1.009489)^12 ≈ 1.12
+            const backToAnnual = Math.pow(1 + monthlyRate, 12) - 1;
+            assertApproxEquals(backToAnnual, annualRate, 0.000001,
+                `Monthly rate (${(monthlyRate * 100).toFixed(4)}%) should compound back to annual rate (${(annualRate * 100).toFixed(2)}%)`);
+        });
+
+        test('Monthly to Annual Rate Conversion', () => {
+            // Test converting monthly rate back to annual
+            const monthlyRate = 0.01; // 1% per month
+            const annualRate = monthlyToAnnualRate(monthlyRate);
+
+            // Annual rate should be (1.01)^12 - 1 ≈ 12.68%
+            const expectedAnnual = Math.pow(1.01, 12) - 1;
+            assertApproxEquals(annualRate, expectedAnnual, 0.000001,
+                `Annual rate should be ${(expectedAnnual * 100).toFixed(2)}%`);
+        });
+
+        test('Round Trip: Annual → Monthly → Annual Rate', () => {
+            // Test that converting annual to monthly and back preserves the value
+            const originalAnnual = 0.07; // 7%
+            const monthly = getMonthlyCompoundRate(originalAnnual);
+            const backToAnnual = monthlyToAnnualRate(monthly);
+
+            assertApproxEquals(backToAnnual, originalAnnual, 0.000001,
+                'Round trip annual→monthly→annual should preserve rate');
+        });
+
+        test('Calculate Monthly Inflation Loss', () => {
+            // With $50,000 balance and 12% annual inflation
+            const balance = 50000;
+            const annualInflation = 12; // 12%
+
+            const monthlyLoss = calculateMonthlyInflationLoss(balance, annualInflation);
+
+            // Monthly rate for 12% annual ≈ 0.9489%
+            // Loss = 50000 * 0.009489 ≈ $474.45
+            const monthlyRate = getMonthlyCompoundRate(annualInflation / 100);
+            const expectedLoss = balance * monthlyRate;
+
+            assertApproxEquals(monthlyLoss, expectedLoss, 0.01,
+                `Monthly loss should be $${expectedLoss.toFixed(2)}`);
+        });
+
+        test('Get Balance State: GROW', () => {
+            // When savings exceed inflation loss, pig should grow
+            const startAmount = 50000;
+            const monthlySavings = 500;
+            const annualInflation = 7;
+
+            const state = getBalanceState(startAmount, monthlySavings, annualInflation);
+
+            // Monthly loss ≈ $283, savings = $500, so should grow
+            assertEquals(state, 'grow', 'Pig should grow when savings > inflation loss');
+        });
+
+        test('Get Balance State: SHRINK', () => {
+            // When inflation loss exceeds savings, pig should shrink
+            const startAmount = 50000;
+            const monthlySavings = 100;
+            const annualInflation = 12;
+
+            const state = getBalanceState(startAmount, monthlySavings, annualInflation);
+
+            // Monthly loss ≈ $474, savings = $100, so should shrink
+            assertEquals(state, 'shrink', 'Pig should shrink when savings < inflation loss');
+        });
+
+        test('Get Balance State: BALANCED', () => {
+            // When savings match inflation loss, pig should stay balanced
+            const startAmount = 50000;
+            const annualInflation = 7;
+            // Calculate exact balanced savings for this configuration
+            const monthlySavings = calculateBalancedSavings(startAmount, annualInflation);
+
+            const state = getBalanceState(startAmount, monthlySavings, annualInflation);
+
+            assertEquals(state, 'balanced',
+                `Pig should be balanced when savings ($${monthlySavings}) match inflation loss`);
+        });
+
+        test('isBalanced Function: Balanced Configuration', () => {
+            // Test the isBalanced helper function directly
+            const startAmount = 50000;
+            const inflation = 7.0;
+            const savings = calculateBalancedSavings(startAmount, inflation);
+
+            const balanced = isBalanced(startAmount, savings, inflation);
+
+            assertTrue(balanced,
+                'isBalanced should return true for balanced configuration');
+        });
+
+        test('isBalanced Function: Unbalanced Configuration', () => {
+            // Test with clearly unbalanced values
+            const startAmount = 10000;
+            const savings = 50;
+            const inflation = 15.0;
+
+            const balanced = isBalanced(startAmount, savings, inflation);
+
+            assertTrue(!balanced,
+                'isBalanced should return false for unbalanced configuration');
+        });
+
+        // Bitcoin Power Law Tests
+
+        test('Bitcoin Power Law: Price Calculation for Known Date', () => {
+            // Test that getBitcoinPowerLawPrice calculates correctly
+            // Using January 1, 2024 as test date
+            const testDate = new Date('2024-01-01T00:00:00Z');
+
+            // Calculate expected price manually using new log-based formula
+            const genesisDate = new Date('2009-01-03T00:00:00Z');
+            const daysSinceGenesis = (testDate - genesisDate) / (1000 * 60 * 60 * 24);
+            const C = -17.0161223;
+            const D = 5.8451542;
+            const expectedPrice = Math.pow(10, C + D * Math.log10(daysSinceGenesis));
+
+            // Get price from function
+            const actualPrice = getBitcoinPowerLawPrice(testDate);
+
+            // Prices should match within floating point precision
+            assertApproxEquals(actualPrice, expectedPrice, 0.01,
+                `Power law price calculation should match formula (${daysSinceGenesis.toFixed(0)} days since genesis, price: $${expectedPrice.toFixed(2)})`);
+        });
+
+        test('Bitcoin Power Law: Porkopolis Economics Model Accuracy', () => {
+            // Verify the new model produces expected price for Jan 1, 2024
+            // Expected: ~$68,513 (Porkopolis Economics median model)
+            const testDate = new Date('2024-01-01T00:00:00Z');
+            const actualPrice = getBitcoinPowerLawPrice(testDate);
+
+            // Should be approximately $68,513 (within reasonable tolerance)
+            assertApproxEquals(actualPrice, 68513, 500,
+                `Price for Jan 1, 2024 should be ~$68,513 (Porkopolis model), actual: $${actualPrice.toFixed(2)}`);
+        });
+
+        test('Bitcoin Power Law: USD to BTC Conversion Consistency', () => {
+            // Test that convertUsdToBtc produces consistent results
+            const testDate = new Date('2024-01-01T00:00:00Z');
+
+            // Get the power law price for this date
+            const btcPrice = getBitcoinPowerLawPrice(testDate);
+            const usdAmount = btcPrice; // Use the actual price as our test amount
+
+            // Convert using the function
+            const btcAmount = convertUsdToBtc(usdAmount, testDate);
+
+            // When USD amount equals BTC price, we should get exactly 1.0 BTC
+            assertApproxEquals(btcAmount, 1.0, 0.000001,
+                `Converting USD amount equal to BTC price should yield 1.0 BTC (price: $${btcPrice.toFixed(2)})`);
+        });
+
+        test('Bitcoin Power Law: BTC to USD Conversion Consistency', () => {
+            // Test that convertBtcToUsd produces consistent results
+            const testDate = new Date('2024-01-01T00:00:00Z');
+
+            // Get the power law price for this date
+            const expectedPrice = getBitcoinPowerLawPrice(testDate);
+
+            // Convert 1.0 BTC to USD
+            const usdAmount = convertBtcToUsd(1.0, testDate);
+
+            // Should equal the power law price
+            assertApproxEquals(usdAmount, expectedPrice, 0.01,
+                `Converting 1.0 BTC should yield the power law price ($${expectedPrice.toFixed(2)})`);
+        });
+
+        test('Bitcoin Power Law: Round Trip USD → BTC → USD', () => {
+            // Test round-trip conversion preserves value
+            const testDate = new Date('2025-11-10T00:00:00Z');
+            const originalUsd = 100000;
+
+            // Convert USD to BTC and back to USD using actual functions
+            const btc = convertUsdToBtc(originalUsd, testDate);
+            const backToUsd = convertBtcToUsd(btc, testDate);
+
+            // Should get back the original USD amount (within floating point precision)
+            assertApproxEquals(backToUsd, originalUsd, 0.01,
+                `Round trip USD→BTC→USD should preserve value ($${originalUsd} → ${btc.toFixed(8)} BTC → $${backToUsd.toFixed(2)})`);
+        });
+
+        test('Bitcoin Power Law: Round Trip BTC → USD → BTC', () => {
+            // Test round-trip conversion preserves value
+            const testDate = new Date('2025-11-10T00:00:00Z');
+            const originalBtc = 2.5;
+
+            // Convert BTC to USD and back to BTC using actual functions
+            const usd = convertBtcToUsd(originalBtc, testDate);
+            const backToBtc = convertUsdToBtc(usd, testDate);
+
+            // Should get back the original BTC amount (within floating point precision)
+            assertApproxEquals(backToBtc, originalBtc, 0.000001,
+                `Round trip BTC→USD→BTC should preserve value (${originalBtc} BTC → $${usd.toFixed(2)} → ${backToBtc.toFixed(8)} BTC)`);
+        });
+
+        test('Bitcoin Power Law: Different Dates Produce Different Prices', () => {
+            // Power law should produce increasing prices over time
+            const date1 = new Date('2020-01-01T00:00:00Z');
+            const date2 = new Date('2024-01-01T00:00:00Z');
+
+            const price1 = getBitcoinPowerLawPrice(date1);
+            const price2 = getBitcoinPowerLawPrice(date2);
+
+            // Later date should have higher price
+            assertTrue(price2 > price1,
+                `Later date should have higher price (2020: $${price1.toFixed(2)} vs 2024: $${price2.toFixed(2)})`);
+        });
+
+        test('Calculate Full Pig Capacity in BTC', () => {
+            // Test with a known date and verify the calculation
+            const testDate = new Date('2024-01-01T00:00:00Z');
+
+            // Get BTC price for this date
+            const btcPrice = getBitcoinPowerLawPrice(testDate);
+
+            // Calculate full pig in BTC using the function
+            const fullPigBtc = calculateFullPigInBtc(testDate);
+
+            // Manually calculate what it should be: $100,000 / BTC price
+            const pigCapacityDollars = 100000; // CONFIG.PIG_CAPACITY_DOLLARS
+            const expectedBtc = pigCapacityDollars / btcPrice;
+
+            // Should match within floating point precision
+            assertApproxEquals(fullPigBtc, expectedBtc, 0.000001,
+                `Full pig should be ${expectedBtc.toFixed(6)} BTC when price is $${btcPrice.toFixed(2)}`);
+        });
+
+        test('Full Pig BTC Calculation Uses CONFIG Value', () => {
+            // Verify that the function correctly reads CONFIG.PIG_CAPACITY_DOLLARS
+            const testDate = new Date('2025-11-11T00:00:00Z');
+
+            // Calculate full pig in BTC
+            const fullPigBtc = calculateFullPigInBtc(testDate);
+
+            // Convert back to USD - should equal CONFIG.PIG_CAPACITY_DOLLARS
+            const backToUsd = convertBtcToUsd(fullPigBtc, testDate);
+
+            // Should equal $100,000 (CONFIG.PIG_CAPACITY_DOLLARS)
+            assertApproxEquals(backToUsd, 100000, 0.01,
+                'Converting full pig BTC back to USD should yield $100,000');
+        });
+
+        // Cumulative Inflation Factor Tests
+
+        test('Calculate Inflation Loss From Factor', () => {
+            // Test scenario: $52,000 saved, factor changes from 1.112 to 1.118
+            const totalSavings = 52000;
+            const oldFactor = 1.112;
+            const newFactor = 1.118;
+
+            // Calculate purchasing power before and after
+            const ppBefore = totalSavings / oldFactor; // $46,762.59
+            const ppAfter = totalSavings / newFactor;  // $46,511.27
+
+            // Expected loss: $251.32
+            const expectedLoss = ppBefore - ppAfter;
+
+            // Calculate using the function
+            const actualLoss = calculateInflationLossFromFactor(totalSavings, oldFactor, newFactor);
+
+            // Should match within floating point precision
+            assertApproxEquals(actualLoss, expectedLoss, 0.01,
+                `Inflation loss should be $${expectedLoss.toFixed(2)}`);
+        });
+
+        test('Cumulative Inflation Factor Progression', () => {
+            // Test that factor grows correctly over multiple months
+            // 7% annual inflation = 0.565% monthly rate
+            const annualRate = 0.07;
+            const monthlyRate = getMonthlyCompoundRate(annualRate);
+
+            let factor = 1.0;
+
+            // Apply inflation for 24 months (2 years)
+            for (let i = 0; i < 24; i++) {
+                factor = factor * (1 + monthlyRate);
+            }
+
+            // After 2 years at 7% annual, factor should be approximately 1.1449
+            // (1.07)^2 = 1.1449
+            const expectedFactor = Math.pow(1 + annualRate, 2);
+
+            assertApproxEquals(factor, expectedFactor, 0.0001,
+                `After 24 months, factor should be ~${expectedFactor.toFixed(4)}`);
+        });
+
+        test('PP Lost Percentage From Cumulative Factor', () => {
+            // Test scenario: factor = 1.118 (11.8% cumulative erosion)
+            const factor = 1.118;
+
+            // Calculate PP lost percentage: (1 - 1/1.118) * 100
+            const ppLost = (1 - 1/factor) * 100;
+
+            // Should be approximately 10.55%
+            assertApproxEquals(ppLost, 10.55, 0.1,
+                'PP lost should be ~10.55%');
+        });
+
+        test('Purchasing Power Calculation From Factor', () => {
+            // Test scenario from user example:
+            // $52,000 saved with cumulative factor 1.118
+            // PP should be $46,511
+            const totalSavings = 52000;
+            const cumulativeFactor = 1.118;
+
+            const purchasingPower = totalSavings / cumulativeFactor;
+
+            // Expected: $46,511
+            assertApproxEquals(purchasingPower, 46511, 20,
+                `PP should be ~$46,511 (accounting for timing)`);
         });
 
         // Run all tests

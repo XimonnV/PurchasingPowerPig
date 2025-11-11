@@ -71,24 +71,48 @@ class SavingsDisplayHandler {
     updateSavingsDisplay() {
         const totalSavings = this.state.get('totalSavings');
         const totalBankSavings = this.state.get('totalBankSavings');
-        
-        // Update total savings display
+        const savingsVehicle = this.state.get('savingsVehicle');
+
+        // Update total savings display (format depends on vehicle)
         if (this.elements.totalSavingsValue) {
-            this.elements.totalSavingsValue.textContent = '$' + totalSavings.toLocaleString();
+            if (savingsVehicle === 'btc') {
+                const totalBtc = this.state.getTotalSavingsBtc();
+                this.elements.totalSavingsValue.textContent = this.formatBtcAmount(totalBtc);
+            } else {
+                // Floor to whole number (no decimals)
+                const totalSavingsFloored = Math.floor(totalSavings);
+                this.elements.totalSavingsValue.textContent = '$' + totalSavingsFloored.toLocaleString();
+            }
         }
-        
-        // Update purchasing power lost percentage
+
+        // Update purchasing power gained/lost with dynamic label
         if (this.elements.totalBankValue) {
-            const percentage = totalSavings > 0 
-                ? Math.round((totalBankSavings / totalSavings) * 100) 
-                : 0;
-            this.elements.totalBankValue.textContent = percentage + '%';
+            const ppInfo = this.state.getPPGainedOrLostInfo();
+
+            // Update percentage value
+            this.elements.totalBankValue.textContent = ppInfo.percentage + '%';
+
+            // Update label text (PP Lost vs PP Gained)
+            const parentLabel = this.elements.totalBankValue.parentElement;
+            if (parentLabel && parentLabel.firstChild?.nodeType === Node.TEXT_NODE) {
+                parentLabel.firstChild.textContent = ppInfo.label + ': ';
+            }
         }
-        
+
         // Update debug display with bank dollar amount
         if (this.elements.debugBankDollars) {
             this.elements.debugBankDollars.textContent = '$' + totalBankSavings.toLocaleString();
         }
+    }
+
+    /**
+     * Format BTC amount for display
+     * @param {number} btcAmount - Amount in BTC
+     * @returns {string} Formatted BTC string (e.g., "₿0.81232")
+     */
+    formatBtcAmount(btcAmount) {
+        // Format with 5 decimal places for readability
+        return '₿' + btcAmount.toFixed(5);
     }
     
     /**

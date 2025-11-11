@@ -150,11 +150,11 @@ function calculateBalancedInflation(startingAmount, monthlySavings, roundTo = 0.
 
 /**
  * Calculate monthly inflation loss from a given balance
- * 
+ *
  * @param {number} currentBalance - Current balance in dollars
  * @param {number} annualInflationPercent - Annual inflation as percentage
  * @returns {number} Dollar amount lost to inflation this month
- * 
+ *
  * @example
  * calculateMonthlyInflationLoss(56000, 12) // Returns ~531.38
  */
@@ -162,6 +162,33 @@ function calculateMonthlyInflationLoss(currentBalance, annualInflationPercent) {
     const annualInflation = annualInflationPercent / 100;
     const monthlyRate = getMonthlyCompoundRate(annualInflation);
     return currentBalance * monthlyRate;
+}
+
+/**
+ * Calculate inflation loss in dollars based on cumulative factor change
+ * This calculates how many dollars of purchasing power were lost due to inflation
+ *
+ * @param {number} totalSavings - Total nominal dollars saved
+ * @param {number} oldFactor - Cumulative inflation factor before this month
+ * @param {number} newFactor - Cumulative inflation factor after this month
+ * @returns {number} Dollar amount of purchasing power lost this month
+ *
+ * @example
+ * // If you have $52,000 saved, and factor goes from 1.112 to 1.118:
+ * calculateInflationLossFromFactor(52000, 1.112, 1.118) // Returns ~281.47
+ * // This means you lost $281.47 in purchasing power
+ */
+function calculateInflationLossFromFactor(totalSavings, oldFactor, newFactor) {
+    // Purchasing power before inflation
+    const ppBefore = totalSavings / oldFactor;
+
+    // Purchasing power after inflation
+    const ppAfter = totalSavings / newFactor;
+
+    // Loss in purchasing power (in dollars)
+    const loss = ppBefore - ppAfter;
+
+    return Math.max(0, loss); // Ensure non-negative
 }
 
 /**
@@ -197,10 +224,10 @@ function getBalanceState(startingAmount, monthlySavings, annualInflationPercent)
 
 /**
  * Check if current values create a balanced state
- * 
+ *
  * Returns true if any of the three values (startAmount, savings, inflation)
  * matches its calculated balanced value.
- * 
+ *
  * @param {number} startAmount - Current starting amount
  * @param {number} savings - Current monthly savings
  * @param {number} inflation - Current annual inflation percentage
@@ -211,11 +238,111 @@ function isBalanced(startAmount, savings, inflation) {
     const balancedStartAmount = calculateBalancedStartAmount(savings, inflation);
     const balancedSavings = calculateBalancedSavings(startAmount, inflation);
     const balancedInflation = calculateBalancedInflation(startAmount, savings);
-    
+
     // Check if any of the three calculations match current values
     return (startAmount === balancedStartAmount) ||
            (savings === balancedSavings) ||
            (Math.abs(inflation - balancedInflation) < 0.01); // Float comparison with epsilon
+}
+
+/**
+ * Bitcoin Power Law - Calculate BTC price in USD using Porkopolis Economics power law model
+ *
+ * Formula: Price (USD) = 10^{(-17.0161223 + 5.8451542 × log₁₀(t))}
+ * where:
+ * - t = days since Bitcoin's genesis block (January 3, 2009)
+ *
+ * @param {Date} date - Date to calculate BTC price for (defaults to current date)
+ * @returns {number} Bitcoin price in USD
+ *
+ * @example
+ * getBitcoinPowerLawPrice(new Date('2024-01-01')) // Returns ~$68,513
+ * getBitcoinPowerLawPrice() // Returns price for current date
+ */
+function getBitcoinPowerLawPrice(date = new Date()) {
+    // Bitcoin genesis block timestamp: January 3, 2009
+    const GENESIS_BLOCK_DATE = new Date('2009-01-03T00:00:00Z');
+
+    // Power law constants from Porkopolis Economics
+    const C = -17.0161223;
+    const D = 5.8451542;
+
+    // Calculate days since genesis block
+    const millisecondsSinceGenesis = date.getTime() - GENESIS_BLOCK_DATE.getTime();
+    const daysSinceGenesis = millisecondsSinceGenesis / (1000 * 60 * 60 * 24);
+
+    // Calculate price using power law: Price = 10^(C + D * log10(t))
+    const price = Math.pow(10, C + D * Math.log10(daysSinceGenesis));
+
+    return price;
+}
+
+/**
+ * Convert USD to BTC using Bitcoin Power Law
+ *
+ * @param {number} usdAmount - Amount in USD
+ * @param {Date} date - Date to use for conversion rate (defaults to current date)
+ * @returns {number} Equivalent amount in BTC
+ *
+ * @example
+ * convertUsdToBtc(100000) // Returns ~1.142 BTC (at current power law price)
+ * convertUsdToBtc(87542, new Date('2024-01-01')) // Returns ~1.0 BTC
+ */
+function convertUsdToBtc(usdAmount, date = new Date()) {
+    const btcPrice = getBitcoinPowerLawPrice(date);
+    return usdAmount / btcPrice;
+}
+
+/**
+ * Convert BTC to USD using Bitcoin Power Law
+ *
+ * @param {number} btcAmount - Amount in BTC
+ * @param {Date} date - Date to use for conversion rate (defaults to current date)
+ * @returns {number} Equivalent amount in USD
+ *
+ * @example
+ * convertBtcToUsd(1.0) // Returns ~$87,542 (at current power law price)
+ * convertBtcToUsd(1.0, new Date('2024-01-01')) // Returns ~$87,542
+ */
+function convertBtcToUsd(btcAmount, date = new Date()) {
+    const btcPrice = getBitcoinPowerLawPrice(date);
+    return btcAmount * btcPrice;
+}
+
+/**
+ * Calculate the maximum pig oval capacity in BTC at a given date
+ * Uses the pig capacity in dollars (from CONFIG) and converts to BTC using power law
+ *
+ * @param {Date} date - Date to use for BTC price calculation (typically simulation start date)
+ * @returns {number} Full pig capacity in BTC (always positive)
+ *
+ * @example
+ * // If PIG_CAPACITY_DOLLARS = $100,000 and BTC price on 2024-01-01 is $62,805
+ * calculateFullPigInBtc(new Date('2024-01-01')) // Returns ~1.592 BTC
+ *
+ * // For today with BTC at $103,534
+ * calculateFullPigInBtc(new Date()) // Returns ~0.9659 BTC
+ */
+function calculateFullPigInBtc(date = new Date()) {
+    // Read pig capacity from CONFIG
+    const pigCapacityDollars = CONFIG.PIG_CAPACITY_DOLLARS;
+
+    // Validate input
+    if (!pigCapacityDollars || pigCapacityDollars <= 0) {
+        console.error('Invalid PIG_CAPACITY_DOLLARS:', pigCapacityDollars);
+        return 0;
+    }
+
+    // Convert to BTC using power law price at the given date
+    const btcAmount = convertUsdToBtc(pigCapacityDollars, date);
+
+    // Ensure positive result
+    if (btcAmount <= 0 || isNaN(btcAmount)) {
+        console.error('Invalid BTC calculation result:', btcAmount);
+        return 0;
+    }
+
+    return btcAmount;
 }
 
 // ============================================================================
@@ -226,17 +353,24 @@ if (typeof window !== 'undefined') {
     // Core conversion functions
     window.getMonthlyCompoundRate = getMonthlyCompoundRate;
     window.monthlyToAnnualRate = monthlyToAnnualRate;
-    
+
     // Balance calculation functions
     window.calculateBalancedStartAmount = calculateBalancedStartAmount;
     window.calculateBalancedSavings = calculateBalancedSavings;
     window.calculateBalancedInflation = calculateBalancedInflation;
-    
+
     // Utility functions
     window.calculateMonthlyInflationLoss = calculateMonthlyInflationLoss;
+    window.calculateInflationLossFromFactor = calculateInflationLossFromFactor;
     window.getBalanceState = getBalanceState;
     window.isBalanced = isBalanced;
-    
+
+    // Bitcoin Power Law functions
+    window.getBitcoinPowerLawPrice = getBitcoinPowerLawPrice;
+    window.convertUsdToBtc = convertUsdToBtc;
+    window.convertBtcToUsd = convertBtcToUsd;
+    window.calculateFullPigInBtc = calculateFullPigInBtc;
+
     // Create namespace for cleaner access (optional, but recommended)
     window.FinancialMath = {
         getMonthlyCompoundRate,
@@ -245,7 +379,12 @@ if (typeof window !== 'undefined') {
         calculateBalancedSavings,
         calculateBalancedInflation,
         calculateMonthlyInflationLoss,
+        calculateInflationLossFromFactor,
         getBalanceState,
-        isBalanced
+        isBalanced,
+        getBitcoinPowerLawPrice,
+        convertUsdToBtc,
+        convertBtcToUsd,
+        calculateFullPigInBtc
     };
 }

@@ -17,11 +17,16 @@ class StateManager {
         this.state = {
             // Simulation state
             fillLevel: CONFIG.MIN_FILL_PERCENTAGE,  // Pig fill percentage (0-100)
-            totalSavings: 0,                        // Total dollar amount saved
+            totalSavings: 0,                        // Total dollar amount saved (current value, can differ from nominal in BTC mode)
+            totalSavingsBtc: 0,                     // Total BTC amount saved (BTC mode)
+            nominalDollarsSaved: 0,                 // Nominal dollar amount deposited (for PP Lost/Gained calculation)
             totalBankSavings: 0,                    // Total dollar amount lost to inflation
             mugFillLevel: CONFIG.MIN_FILL_PERCENTAGE, // Banker's mug fill percentage (0-100)
             currentSimDate: new Date(),             // Current simulation date
             simulationStartDate: new Date(),        // Date when simulation started (for PP reference)
+            savingsVehicle: 'usd',                  // Savings vehicle ('usd' or 'btc')
+            fullPigBtcCapacity: 0,                  // Full pig capacity in BTC (calculated at simulation start)
+            cumulativeInflationFactor: 1.0,         // Cumulative inflation erosion factor (1.0 = no erosion)
 
             // Animation state
             lastDropTime: 0,                        // Timestamp of last drop creation
@@ -201,43 +206,104 @@ class StateManager {
     }
     
     /**
-     * Reduce fill level by monthly inflation
+     * Apply monthly inflation to purchasing power
+     * Updates cumulative inflation factor and recalculates fill level
      * Uses current inflation rate from SettingsCache
-     * @returns {number} Dollar amount lost to inflation
+     * @returns {number} Dollar amount of purchasing power lost to inflation
      */
     applyMonthlyInflation() {
         const monthlyRate = this.getMonthlyInflationRate();
-        const inflationReduction = this.state.fillLevel * monthlyRate; // percentage points lost
-        const inflationDollars = fillPercentageToDollars(inflationReduction, 'pig');
-        
-        // Reduce fill level
-        this.updateFillLevel(this.state.fillLevel * (1 - monthlyRate));
-        
+        const oldFactor = this.state.cumulativeInflationFactor;
+
+        // Update cumulative inflation factor
+        const newFactor = oldFactor * (1 + monthlyRate);
+        this.setState({ cumulativeInflationFactor: newFactor });
+
+        // Debug: Log cumulative inflation factor
+        console.log(`💸 Inflation applied: Factor ${oldFactor.toFixed(6)} → ${newFactor.toFixed(6)} (${((newFactor - 1) * 100).toFixed(2)}% cumulative erosion)`);
+
+        // Recalculate fill level from purchasing power
+        const purchasingPower = this.state.totalSavings / newFactor;
+        const newFillLevel = (purchasingPower / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
+        this.updateFillLevel(newFillLevel);
+
+        // Calculate inflation loss in dollars (for visual drop)
+        const inflationDollars = calculateInflationLossFromFactor(
+            this.state.totalSavings,
+            oldFactor,
+            newFactor
+        );
+
         return inflationDollars;
     }
     
     /**
      * Add monthly savings to pig fill level
      * Uses current monthly savings from SettingsCache
+     * Recalculates fill level based on purchasing power
      * Returns false if pig is full, true if added
      * @returns {boolean} Whether savings were added (false if pig full)
      */
     addMonthlySavingsToPig() {
         const monthlySavings = this.getMonthlySavings();
-        
+
         if (monthlySavings === 0) return false;
-        
-        // Add to total savings
-        this.addToTotalSavings(monthlySavings);
-        
-        // Add to fill level if not full
-        if (this.state.fillLevel < CONFIG.MAX_FILL_PERCENTAGE) {
-            const dropVolume = calculatePigDropVolume(monthlySavings);
-            this.updateFillLevel(this.state.fillLevel + dropVolume);
+
+        const savingsVehicle = this.state.savingsVehicle;
+
+        if (savingsVehicle === 'btc') {
+            // BTC mode: Convert USD monthly savings to BTC at current date
+            const currentDate = this.state.currentSimDate;
+            const btcAmount = convertUsdToBtc(monthlySavings, currentDate);
+
+            // Add to BTC total and track nominal dollar amount
+            const newTotalBtc = this.state.totalSavingsBtc + btcAmount;
+            const newNominalDollars = this.state.nominalDollarsSaved + monthlySavings;
+
+            this.setState({
+                totalSavingsBtc: newTotalBtc,
+                nominalDollarsSaved: newNominalDollars  // Track nominal dollars deposited
+            });
+
+            // Recalculate fill level based on BTC capacity
+            const fullPigBtc = this.state.fullPigBtcCapacity;
+            const newFillLevel = (newTotalBtc / fullPigBtc) * 100;
+
+            console.log(`💰 Added ${btcAmount.toFixed(8)} BTC (from $${monthlySavings}) at ${currentDate.toISOString().split('T')[0]}`);
+
+            // Check if pig is full
+            if (newFillLevel >= CONFIG.MAX_FILL_PERCENTAGE) {
+                this.updateFillLevel(CONFIG.MAX_FILL_PERCENTAGE);
+                return false;
+            }
+
+            this.updateFillLevel(newFillLevel);
+            return true;
+
+        } else {
+            // USD mode: Use existing logic with cumulative inflation factor
+
+            // Add to total savings (in USD mode, totalSavings = nominalDollarsSaved)
+            this.addToTotalSavings(monthlySavings);
+
+            // Also increment nominal dollars
+            this.setState({
+                nominalDollarsSaved: this.state.nominalDollarsSaved + monthlySavings
+            });
+
+            // Recalculate fill level from purchasing power
+            const purchasingPower = this.state.totalSavings / this.state.cumulativeInflationFactor;
+            const newFillLevel = (purchasingPower / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
+
+            // Check if pig is full
+            if (newFillLevel >= CONFIG.MAX_FILL_PERCENTAGE) {
+                this.updateFillLevel(CONFIG.MAX_FILL_PERCENTAGE);
+                return false;
+            }
+
+            this.updateFillLevel(newFillLevel);
             return true;
         }
-        
-        return false;
     }
     
     /**
@@ -295,7 +361,88 @@ class StateManager {
     updateLastDropTime(timestamp) {
         this.setState({ lastDropTime: timestamp });
     }
-    
+
+    /**
+     * Get current savings vehicle
+     * @returns {string} Savings vehicle ('usd' or 'btc')
+     */
+    getSavingsVehicle() {
+        return this.state.savingsVehicle;
+    }
+
+    /**
+     * Set savings vehicle and convert between USD and BTC
+     * @param {string} newVehicle - Savings vehicle ('usd' or 'btc')
+     */
+    setSavingsVehicle(newVehicle) {
+        const oldVehicle = this.state.savingsVehicle;
+
+        // If switching vehicles, convert the savings
+        if (oldVehicle !== newVehicle) {
+            this.convertSavingsVehicle(oldVehicle, newVehicle);
+        }
+
+        this.setState({ savingsVehicle: newVehicle });
+    }
+
+    /**
+     * Convert savings between USD and BTC using current simulation date
+     * @param {string} fromVehicle - Current vehicle ('usd' or 'btc')
+     * @param {string} toVehicle - Target vehicle ('usd' or 'btc')
+     */
+    convertSavingsVehicle(fromVehicle, toVehicle) {
+        const currentDate = this.state.currentSimDate;
+
+        if (fromVehicle === 'usd' && toVehicle === 'btc') {
+            // USD → BTC: Convert total USD savings to BTC at current date
+            const usdAmount = this.state.totalSavings;
+            const btcAmount = convertUsdToBtc(usdAmount, currentDate);
+            this.setState({ totalSavingsBtc: btcAmount });
+
+            console.log(`💱 Converted $${usdAmount.toLocaleString()} → ${btcAmount.toFixed(8)} BTC at ${currentDate.toISOString().split('T')[0]}`);
+        } else if (fromVehicle === 'btc' && toVehicle === 'usd') {
+            // BTC → USD: Convert total BTC savings to USD at current date
+            const btcAmount = this.state.totalSavingsBtc;
+            const usdAmount = convertBtcToUsd(btcAmount, currentDate);
+            this.setState({ totalSavings: usdAmount });
+
+            console.log(`💱 Converted ${btcAmount.toFixed(8)} BTC → $${usdAmount.toLocaleString()} at ${currentDate.toISOString().split('T')[0]}`);
+        }
+    }
+
+    /**
+     * Get full pig capacity in BTC (calculated at simulation start date)
+     * This value represents how many BTC equal $100,000 at the simulation start date
+     * @returns {number} Full pig capacity in BTC (always positive, 0 if not yet calculated)
+     */
+    getFullPigBtcCapacity() {
+        const capacity = this.state.fullPigBtcCapacity;
+
+        // Ensure we always return a non-negative value
+        if (!capacity || capacity <= 0 || isNaN(capacity)) {
+            return 0;
+        }
+
+        return capacity;
+    }
+
+    /**
+     * Get cumulative inflation factor
+     * This tracks how much purchasing power has eroded due to inflation
+     * @returns {number} Cumulative inflation factor (1.0 = no erosion, higher = more erosion)
+     */
+    getCumulativeInflationFactor() {
+        return this.state.cumulativeInflationFactor;
+    }
+
+    /**
+     * Get total savings in BTC
+     * @returns {number} Total BTC amount saved
+     */
+    getTotalSavingsBtc() {
+        return this.state.totalSavingsBtc;
+    }
+
     /**
      * Update viewport state
      * @param {Object} viewport - Viewport properties (width, height, scale, etc.)
@@ -313,21 +460,50 @@ class StateManager {
         // Use provided amount or get from SettingsCache
         const amount = startAmount !== null ? startAmount : this.getStartingAmount();
 
-        // Calculate initial fill level using CONFIG constant
-        const initialFillLevel = (amount / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
-
         // Set simulation start date to now
         const startDate = new Date();
 
+        // Calculate full pig capacity in BTC at simulation start date
+        // This value is stored so it remains constant throughout the simulation
+        const fullPigBtc = calculateFullPigInBtc(startDate);
+
+        // Debug log to verify calculation
+        if (fullPigBtc > 0) {
+            console.log(`✓ Full pig BTC capacity calculated: ${fullPigBtc.toFixed(8)} BTC at ${startDate.toISOString()}`);
+        } else {
+            console.error('❌ Failed to calculate full pig BTC capacity. Check that financial-math.js is loaded.');
+        }
+
+        // Convert starting amount to BTC (for BTC mode)
+        const startAmountBtc = convertUsdToBtc(amount, startDate);
+
+        // Determine fill level based on current vehicle
+        const currentVehicle = this.state.savingsVehicle;
+        let initialFillLevel;
+
+        if (currentVehicle === 'btc') {
+            // BTC mode: fill level based on BTC capacity
+            initialFillLevel = (startAmountBtc / fullPigBtc) * 100;
+            console.log(`🔄 Reset in BTC mode: ${amount.toLocaleString()} = ${startAmountBtc.toFixed(8)} BTC`);
+        } else {
+            // USD mode: fill level based on USD capacity
+            initialFillLevel = (amount / CONFIG.PIG_CAPACITY_DOLLARS) * 100;
+        }
+
         this.setState({
             fillLevel: initialFillLevel,
-            totalSavings: amount,
+            totalSavings: amount,                 // Always store USD amount
+            totalSavingsBtc: startAmountBtc,      // Always store BTC equivalent
+            nominalDollarsSaved: amount,          // Initialize nominal amount
             totalBankSavings: 0,
             mugFillLevel: CONFIG.MIN_FILL_PERCENTAGE,
             lastDropTime: 0,
             isPaused: false,
             currentSimDate: new Date(startDate),
-            simulationStartDate: new Date(startDate)
+            simulationStartDate: new Date(startDate),
+            fullPigBtcCapacity: fullPigBtc,
+            cumulativeInflationFactor: 1.0  // Reset to 1.0 (no erosion at start)
+            // Note: savingsVehicle is NOT reset - it persists across restarts
         });
     }
     
@@ -361,21 +537,74 @@ class StateManager {
     
     /**
      * Get current purchasing power value in dollars
-     * @returns {number} Purchasing power in dollars (based on fillLevel)
+     * Calculated from total savings adjusted by cumulative inflation factor
+     * @returns {number} Purchasing power in dollars
      */
     getPPValue() {
-        return Math.round(fillPercentageToDollars(this.state.fillLevel, 'pig'));
+        const savingsVehicle = this.state.savingsVehicle;
+
+        if (savingsVehicle === 'btc') {
+            // BTC mode: Convert BTC to USD at current date, then adjust for inflation
+            const currentDate = this.state.currentSimDate;
+            const totalBtc = this.state.totalSavingsBtc;
+            const usdValue = convertBtcToUsd(totalBtc, currentDate);
+            const purchasingPower = usdValue / this.state.cumulativeInflationFactor;
+            return Math.round(purchasingPower);
+        } else {
+            // USD mode: Divide total savings by cumulative inflation factor
+            const purchasingPower = this.state.totalSavings / this.state.cumulativeInflationFactor;
+            return Math.round(purchasingPower);
+        }
     }
-    
+
     /**
      * Get percentage of purchasing power lost
+     * Calculated from cumulative inflation factor
      * @returns {number} Percentage (0-100)
      */
     getPurchasingPowerLostPercentage() {
-        if (this.state.totalSavings === 0) return 0;
-        return Math.round((this.state.totalBankSavings / this.state.totalSavings) * 100);
+        const factor = this.state.cumulativeInflationFactor;
+        if (factor <= 0 || factor === 1.0) return 0;
+        return Math.round((1 - 1/factor) * 100);
     }
-    
+
+    /**
+     * Get purchasing power gained or lost information
+     * Compares PP value to nominal dollars saved
+     * @returns {Object} { label: 'PP Lost' or 'PP Gained', percentage: number, isGain: boolean }
+     */
+    getPPGainedOrLostInfo() {
+        const nominalDollars = this.state.nominalDollarsSaved;
+        const ppValue = this.getPPValue();
+
+        if (nominalDollars === 0) {
+            // At the very start, show "PP Lost: 0%"
+            return {
+                label: 'PP Lost',
+                percentage: 0,
+                isGain: false
+            };
+        }
+
+        if (ppValue > nominalDollars) {
+            // Gain: PP is higher than nominal (can happen in BTC mode)
+            const gainPercentage = ((ppValue - nominalDollars) / nominalDollars) * 100;
+            return {
+                label: 'PP Gained',
+                percentage: Math.round(gainPercentage),
+                isGain: true
+            };
+        } else {
+            // Loss or equal: PP is lower than or equal to nominal
+            const lossPercentage = ((nominalDollars - ppValue) / nominalDollars) * 100;
+            return {
+                label: 'PP Lost',
+                percentage: Math.round(lossPercentage),
+                isGain: false
+            };
+        }
+    }
+
     /**
      * Get pig fill as dollar amount
      * @returns {number} Dollar amount in pig
