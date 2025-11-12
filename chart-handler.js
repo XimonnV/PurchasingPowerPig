@@ -189,7 +189,7 @@ class ChartHandler {
                 fixedrange: true // Disable zoom
             },
             yaxis: {
-                title: 'USD Value',
+                title: 'USD',
                 rangemode: 'tozero',
                 fixedrange: true // Disable zoom
             },
@@ -205,8 +205,8 @@ class ChartHandler {
                 y: 1,
                 orientation: 'h'
             },
-            paper_bgcolor: 'rgba(255, 255, 255, 0.9)',
-            plot_bgcolor: 'rgba(255, 255, 255, 0.9)',
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'rgba(255,255,255,0.4)',
             shapes: this.buildBackgroundShapes() // Add background shading
         };
 

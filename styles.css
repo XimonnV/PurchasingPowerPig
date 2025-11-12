@@ -62,6 +62,7 @@ body.mobile-mode {
     display: flex;
     flex-direction: column;
     gap: 20px; /* Automatic 20px spacing between all panels */
+    z-index: 2100; /* Above banner (2000) */
 }
 
 /* Mobile mode: position panels below animation, with savings panel at bottom of viewport */
@@ -107,7 +108,7 @@ body.mobile-mode .info-display {
     max-width: calc(100vw - 300px - 40px); /* Max: viewport - left panels/animation - margins */
     height: 390px; /* Fixed height to match controls panel */
     overflow: auto; /* Allow scrolling if content exceeds height */
-    z-index: 10; /* Above animation but below modals */
+    z-index: 2100; /* Same as panels - above banner (2000) */
 }
 
 /* Hide chart panel in start state */
@@ -122,7 +123,7 @@ body.mobile-mode .chart-panel {
     top: calc(var(--window-height) + 520px); /* Default fallback - JavaScript overrides this */
     left: 20px; /* Left margin */
     right: auto; /* Allow width to be set explicitly */
-    width: calc(100vw - 80px); /* Full viewport width minus left/right margins */
+    width: calc(100vw - 70px); /* Full viewport width minus left/right margins */
     max-width: none; /* Remove max-width restriction */
     height: 390px; /* Maintain fixed height from desktop */
     margin-bottom: 20px; /* Bottom margin for spacing */
@@ -139,7 +140,7 @@ body.mobile-mode .chart-panel {
 .savings-display,
 .info-display,
 .chart-panel {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.8);
     padding: 15px;
     border-radius: 10px;
     backdrop-filter: blur(10px);

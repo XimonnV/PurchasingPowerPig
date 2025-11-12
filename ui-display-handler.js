@@ -73,6 +73,12 @@ class UIDisplayHandler {
             }
         });
 
+        // Subscribe to btcModeEverActive to reposition chart when deposits row visibility changes
+        this.state.subscribe('btcModeEverActive', () => {
+            // Deposits row visibility affects info panel height, so reposition chart
+            this.positionChartPanelAfterLayout();
+        });
+
         // Update displays to match current state
         this.updatePauseButton();
         this.updatePauseButtonVisibility();
