@@ -3,9 +3,8 @@
     --window-height: 100svh; /* Use small viewport height (stable with browser chrome visible) */
 }
 
-/* Ensure html covers full viewport */
+/* Ensure html can expand with body content */
 html {
-    height: 100%;
     min-height: 100%;
 }
 
@@ -22,10 +21,12 @@ html {
 body {
     margin: 0;
     padding: 20px;
-    min-height: 100%;
+    min-height: 100%; /* Match html height, will expand with content */
     min-width: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    background-attachment: fixed; /* Fix gradient to viewport, covers all scrollable area */
+    background: linear-gradient(to bottom, #667eea 0%, #764ba2 100%);
+    background-attachment: scroll; /* Explicitly set to scroll with content */
+    background-size: 100% 100%; /* Force gradient to cover full body dimensions */
+    background-repeat: no-repeat; /* Don't tile when body expands */
     font-family: 'Arial', sans-serif;
     overflow: auto; /* Always allow vertical scrolling */
 }
