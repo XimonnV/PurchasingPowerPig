@@ -56,12 +56,17 @@ class BalanceController {
     initialize() {
         // 1. Cache DOM elements
         this.cacheElements();
-        
+
         // 2. Setup event listeners
         this.setupSliderListeners();
         this.setupBalanceButtonListeners();
-        
-        // 3. Perform initial balance check
+
+        // 3. Subscribe to totalSavings changes to update balance icons during simulation
+        this.stateManager.subscribe('totalSavings', () => {
+            this.checkBalance();
+        });
+
+        // 4. Perform initial balance check
         this.checkBalance();
     }
     
@@ -112,16 +117,27 @@ class BalanceController {
     
     /**
      * Check if current values are balanced and update icon accordingly
+     * During simulation, uses current savings value instead of starting amount
      */
     checkBalance() {
-        // Get current values from sliders
-        const currentStartAmount = parseInt(this.elements.startAmountSlider.value);
+        // Use current savings if simulation is running, otherwise use starting amount
+        const isStartState = this.stateManager.get('isStartState');
+        let baseAmount;
+
+        if (isStartState) {
+            // Not running: use starting amount from slider
+            baseAmount = parseInt(this.elements.startAmountSlider.value);
+        } else {
+            // Running: use current savings value (starting amount + accumulated savings)
+            baseAmount = Math.floor(this.stateManager.get('totalSavings'));
+        }
+
         const currentInflation = parseFloat(this.elements.inflationSlider.value);
         const currentSavings = parseInt(this.elements.savingsSlider.value);
-        
+
         // Get balance state from financial-math.js
-        const balanceState = getBalanceState(currentStartAmount, currentSavings, currentInflation);
-        
+        const balanceState = getBalanceState(baseAmount, currentSavings, currentInflation);
+
         // Update icon based on state
         if (balanceState === this.config.balanceStates.BALANCED) {
             // Balanced: show balance icon (no flip)
@@ -287,46 +303,70 @@ class BalanceController {
     /**
      * Handle Balance Monthly Savings button click
      * Calculates optimal monthly savings based on current starting amount and inflation
+     * During simulation, uses current savings value instead of starting amount
      */
     handleBalanceSavings() {
-        const startingAmount = parseInt(this.elements.startAmountSlider.value);
+        // Use current savings if simulation is running, otherwise use starting amount
+        const isStartState = this.stateManager.get('isStartState');
+        let baseAmount;
+
+        if (isStartState) {
+            // Not running: use starting amount from slider
+            baseAmount = parseInt(this.elements.startAmountSlider.value);
+        } else {
+            // Running: use current savings value (starting amount + accumulated savings)
+            baseAmount = Math.floor(this.stateManager.get('totalSavings'));
+        }
+
         const annualInflationPercent = parseFloat(this.elements.inflationSlider.value);
-        
+
         // Calculate balanced savings using financial-math.js function
-        const calculatedSavings = calculateBalancedSavings(startingAmount, annualInflationPercent);
-        
+        const calculatedSavings = calculateBalancedSavings(baseAmount, annualInflationPercent);
+
         // Set all buttons to balanced icon immediately (no flip)
         this.setBalanceIcon(this.config.images.balance, false);
-        
+
         // Set the slider value
         this.elements.savingsSlider.value = calculatedSavings;
-        
+
         // Trigger input event to update settingsCache
         this.elements.savingsSlider.dispatchEvent(new Event('input', { bubbles: true }));
-        
+
         // Display value is updated by the input event listener
     }
     
     /**
      * Handle Balance Inflation button click
      * Calculates optimal inflation rate based on current starting amount and savings
+     * During simulation, uses current savings value instead of starting amount
      */
     handleBalanceInflation() {
-        const startingAmount = parseInt(this.elements.startAmountSlider.value);
+        // Use current savings if simulation is running, otherwise use starting amount
+        const isStartState = this.stateManager.get('isStartState');
+        let baseAmount;
+
+        if (isStartState) {
+            // Not running: use starting amount from slider
+            baseAmount = parseInt(this.elements.startAmountSlider.value);
+        } else {
+            // Running: use current savings value (starting amount + accumulated savings)
+            baseAmount = Math.floor(this.stateManager.get('totalSavings'));
+        }
+
         const monthlySavings = parseInt(this.elements.savingsSlider.value);
-        
+
         // Calculate balanced inflation using financial-math.js function
-        const calculatedInflation = calculateBalancedInflation(startingAmount, monthlySavings);
-        
+        const calculatedInflation = calculateBalancedInflation(baseAmount, monthlySavings);
+
         // Set all buttons to balanced icon immediately (no flip)
         this.setBalanceIcon(this.config.images.balance, false);
-        
+
         // Set the slider value
         this.elements.inflationSlider.value = calculatedInflation;
-        
+
         // Trigger input event to update settingsCache
         this.elements.inflationSlider.dispatchEvent(new Event('input', { bubbles: true }));
-        
+
         // Display value is updated by the input event listener
     }
     
