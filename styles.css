@@ -22,13 +22,15 @@ body {
     margin: 0;
     padding: 20px;
     min-height: 100%; /* Match html height, will expand with content */
-    min-width: 100%;
+    width: 100vw; /* Full viewport width */
+    box-sizing: border-box; /* Include padding in width calculation */
     background: linear-gradient(to bottom, #667eea 0%, #764ba2 100%);
     background-attachment: scroll; /* Explicitly set to scroll with content */
     background-size: 100% 100%; /* Force gradient to cover full body dimensions */
     background-repeat: no-repeat; /* Don't tile when body expands */
     font-family: 'Arial', sans-serif;
-    overflow: auto; /* Always allow vertical scrolling */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    overflow-y: auto; /* Allow vertical scrolling */
 }
 
 /* In mobile mode, ensure body is tall enough for scrolling */
