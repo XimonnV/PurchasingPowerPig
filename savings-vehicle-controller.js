@@ -1,18 +1,18 @@
 /**
  * SavingsVehicleController - Savings Vehicle Toggle Management
  *
- * Manages the savings vehicle toggle (USD $ vs BTC ₿) and persists user preference in cookies.
+ * Manages the savings vehicle toggle (USD $ vs BTC ₿) and persists user preference in localStorage.
  * This determines which asset the user's savings are held in (dollars or bitcoin).
  *
  * Responsibilities:
- * - Initialize toggle from cookie (or use default)
+ * - Initialize toggle from storage (or use default)
  * - Handle toggle change events
- * - Save preference to cookie and state manager
+ * - Save preference to storage and state manager
  * - Provide current savings vehicle value
  *
  * Dependencies:
  * - config.js (CONFIG.savingsVehicle)
- * - cookie-settings.js (getCookieSetting, setCookieSetting)
+ * - settings-storage.js (getSetting, setSetting)
  * - state-manager.js (stateManager to update savingsVehicle state)
  *
  * Example:
@@ -45,14 +45,14 @@ class SavingsVehicleController {
 
     /**
      * Initialize the controller
-     * Reads saved preference from cookie and sets up event listeners
+     * Reads saved preference from storage and sets up event listeners
      */
     initialize() {
         // Cache DOM elements
         this.cacheElements();
 
-        // Load saved preference from cookie (or use default)
-        this.loadFromCookie();
+        // Load saved preference from storage (or use default)
+        this.loadFromStorage();
 
         // Setup event listeners
         this.setupEventListeners();
@@ -68,12 +68,14 @@ class SavingsVehicleController {
     }
 
     /**
-     * Load savings vehicle preference from cookie
-     * Falls back to default if no cookie exists
+     * Load savings vehicle preference from storage
+     * Falls back to default if no saved value exists
      */
-    loadFromCookie() {
-        // Get saved preference from cookie
-        const savedVehicle = getCookieSetting('savingsVehicle', this.config.savingsVehicle.default);
+    loadFromStorage() {
+        // Get saved preference from storage
+        const savedVehicle = getSetting('savingsVehicle', this.config.savingsVehicle.default);
+
+        console.log('📦 Loading savings vehicle from storage:', savedVehicle);
 
         // Validate saved value (ensure it's either "usd" or "btc")
         const isValid = savedVehicle === this.config.savingsVehicle.options.USD ||
@@ -81,6 +83,8 @@ class SavingsVehicleController {
 
         // Use saved value if valid, otherwise use default
         this.currentVehicle = isValid ? savedVehicle : this.config.savingsVehicle.default;
+
+        console.log('✓ Savings vehicle set to:', this.currentVehicle);
 
         // Update state manager to match loaded preference
         if (this.stateManager) {
@@ -128,8 +132,8 @@ class SavingsVehicleController {
         // Update toggle background color
         this.updateToggleBackgroundColor();
 
-        // Save to cookie
-        this.saveToCookie();
+        // Save to storage
+        this.saveToStorage();
 
         console.log('Savings vehicle changed to:', newVehicle);
     }
@@ -170,10 +174,12 @@ class SavingsVehicleController {
     }
 
     /**
-     * Save current vehicle to cookie
+     * Save current vehicle to storage
      */
-    saveToCookie() {
-        setCookieSetting('savingsVehicle', this.currentVehicle);
+    saveToStorage() {
+        console.log('💾 Saving savings vehicle to storage:', this.currentVehicle);
+        setSetting('savingsVehicle', this.currentVehicle);
+        console.log('✓ Saved to storage');
     }
 
     /**
@@ -220,8 +226,8 @@ class SavingsVehicleController {
         // Update UI
         this.updateUI();
 
-        // Save to cookie
-        this.saveToCookie();
+        // Save to storage
+        this.saveToStorage();
     }
 }
 

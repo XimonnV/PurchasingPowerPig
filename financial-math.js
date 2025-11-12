@@ -263,9 +263,10 @@ function getBitcoinPowerLawPrice(date = new Date()) {
     // Bitcoin genesis block timestamp: January 3, 2009
     const GENESIS_BLOCK_DATE = new Date('2009-01-03T00:00:00Z');
 
-    // Power law constants from Porkopolis Economics
-    const C = -17.0161223;
-    const D = 5.8451542;
+    // Power law constants from https://charts.bgeometrics.com/power_law.html in comments the Porkopolis Economics values.
+    // Chose the bgeometrics version as its usd values is more conservative.
+    const C = Math.log10(1.0117 * (10 ** -17)); //  log(1.0117 × 10^(-17))==-16.994947, Porkopolis: -17.0161223;
+    const D = 5.82; // Porkopolis: 5.8451542;
 
     // Calculate days since genesis block
     const millisecondsSinceGenesis = date.getTime() - GENESIS_BLOCK_DATE.getTime();

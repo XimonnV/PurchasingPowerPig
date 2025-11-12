@@ -1,16 +1,18 @@
 /**
  * SavingsDisplayHandler - Savings Panel Display Management
- * 
+ *
  * Responsibilities:
  * - Update total savings display ($XX,XXX)
  * - Update purchasing power lost percentage (XX%)
  * - Update purchasing power value display ($(YYYY-MM)XXXXX)
+ * - Update total deposits display ($XX,XXX)
+ * - Show/hide deposits row based on BTC mode activation
  * - Update debug displays for bank dollars
- * 
+ *
  * Dependencies:
  * - config.js (CONFIG constants)
- * - state-manager.js (state values)
- * 
+ * - state-manager.js (state values including nominalDollarsSaved, btcModeEverActive)
+ *
  * Example:
  * ```javascript
  * const savingsHandler = new SavingsDisplayHandler(CONFIG, stateManager);
@@ -33,6 +35,8 @@ class SavingsDisplayHandler {
             totalBankValue: null,
             ppValue: null,
             ppStartDate: null,
+            totalContributionsValue: null,
+            depositsRow: null,
             debugBankDollars: null
         };
     }
@@ -44,10 +48,12 @@ class SavingsDisplayHandler {
     initialize() {
         // Cache DOM elements
         this.cacheElements();
-        
+
         // Update displays to match current state
         this.updateSavingsDisplay();
         this.updatePPDisplay();
+        this.updateContributionsDisplay();
+        this.updateDepositsRowVisibility();
     }
     
     /**
@@ -56,11 +62,15 @@ class SavingsDisplayHandler {
     cacheElements() {
         this.elements.totalSavingsValue = document.getElementById(this.config.elementIds.totalSavingsValue);
         this.elements.totalBankValue = document.getElementById(this.config.elementIds.totalBankValue);
-        
+
         // PP display - look for both possible element IDs
         this.elements.ppValue = document.getElementById(this.config.elementIds.ppValue);
         this.elements.ppStartDate = document.getElementById(this.config.elementIds.ppStartDate);
-        
+
+        // Deposits row and total contributions display
+        this.elements.depositsRow = document.getElementById('depositsRow');
+        this.elements.totalContributionsValue = document.getElementById('totalContributionsValue');
+
         // Debug
         this.elements.debugBankDollars = document.getElementById(this.config.elementIds.debugBankDollars);
     }
@@ -122,13 +132,13 @@ class SavingsDisplayHandler {
     updatePPDisplay() {
         // Get PP value in dollars (based on current fill level)
         const ppValue = this.state.getPPValue();
-        
+
         // Get formatted start date for PP reference (YYYY-MM format)
         const startDate = this.state.getFormattedStartDate();
-        
+
         // Check if we have the combined element (ppValueFormatted) or separate elements
         const combinedElement = document.getElementById('ppValueFormatted');
-        
+
         if (combinedElement) {
             // New format: Combined display with date prefix
             combinedElement.textContent = `$(${startDate})${ppValue.toLocaleString()}`;
@@ -137,13 +147,44 @@ class SavingsDisplayHandler {
             if (this.elements.ppStartDate) {
                 this.elements.ppStartDate.textContent = startDate;
             }
-            
+
             if (this.elements.ppValue) {
                 this.elements.ppValue.textContent = '$' + ppValue.toLocaleString();
             }
         }
     }
-    
+
+    /**
+     * Update the total deposits display
+     * Shows total dollar amount deposited (starting amount + all monthly savings)
+     */
+    updateContributionsDisplay() {
+        if (!this.elements.totalContributionsValue) return;
+
+        // Get nominal dollars saved from state (tracks all deposits)
+        const totalDeposits = this.state.get('nominalDollarsSaved');
+
+        // Floor to whole number and format
+        const totalDepositsFloored = Math.floor(totalDeposits);
+        this.elements.totalContributionsValue.textContent = '$' + totalDepositsFloored.toLocaleString();
+    }
+
+    /**
+     * Update deposits row visibility
+     * Show if BTC mode was ever active during this simulation
+     */
+    updateDepositsRowVisibility() {
+        if (!this.elements.depositsRow) return;
+
+        const btcModeEverActive = this.state.get('btcModeEverActive');
+
+        if (btcModeEverActive) {
+            this.elements.depositsRow.style.display = '';  // Show (default display)
+        } else {
+            this.elements.depositsRow.style.display = 'none';  // Hide
+        }
+    }
+
     /**
      * Get current total savings
      * @returns {number} Total savings in dollars

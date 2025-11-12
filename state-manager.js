@@ -27,6 +27,7 @@ class StateManager {
             savingsVehicle: 'usd',                  // Savings vehicle ('usd' or 'btc')
             fullPigBtcCapacity: 0,                  // Full pig capacity in BTC (calculated at simulation start)
             cumulativeInflationFactor: 1.0,         // Cumulative inflation erosion factor (1.0 = no erosion)
+            btcModeEverActive: false,               // Whether BTC mode was activated during this simulation (for deposits row visibility)
 
             // Animation state
             lastDropTime: 0,                        // Timestamp of last drop creation
@@ -381,12 +382,21 @@ class StateManager {
     setSavingsVehicle(newVehicle) {
         const oldVehicle = this.state.savingsVehicle;
 
-        // If switching vehicles, convert the savings
-        if (oldVehicle !== newVehicle) {
+        // Only convert if switching vehicles AND there are savings to convert
+        // Skip conversion during initial load (when totalSavings and totalSavingsBtc are both 0)
+        const hasSavings = this.state.totalSavings > 0 || this.state.totalSavingsBtc > 0;
+
+        if (oldVehicle !== newVehicle && hasSavings) {
             this.convertSavingsVehicle(oldVehicle, newVehicle);
         }
 
-        this.setState({ savingsVehicle: newVehicle });
+        // Mark BTC mode as ever active if switching to BTC (for deposits row visibility)
+        const stateUpdate = { savingsVehicle: newVehicle };
+        if (newVehicle === 'btc' && !this.state.isStartState) {
+            stateUpdate.btcModeEverActive = true;
+        }
+
+        this.setState(stateUpdate);
     }
 
     /**
@@ -517,7 +527,8 @@ class StateManager {
             currentSimDate: new Date(startDate),
             simulationStartDate: new Date(startDate),
             fullPigBtcCapacity: fullPigBtc,
-            cumulativeInflationFactor: 1.0  // Reset to 1.0 (no erosion at start)
+            cumulativeInflationFactor: 1.0,       // Reset to 1.0 (no erosion at start)
+            btcModeEverActive: currentVehicle === 'btc'  // Set based on current vehicle (from localStorage)
             // Note: savingsVehicle is NOT reset - it persists across restarts
         });
     }

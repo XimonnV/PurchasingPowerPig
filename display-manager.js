@@ -138,7 +138,21 @@ class DisplayManager {
                 this.handlers.savings.updateSavingsDisplay(); // PP Lost/Gained % depends on PP value
             })
         );
-        
+
+        // Nominal dollars saved changes → update contributions display
+        this.unsubscribers.push(
+            this.state.subscribe('nominalDollarsSaved', () => {
+                this.handlers.savings.updateContributionsDisplay();
+            })
+        );
+
+        // BTC mode ever active changes → update deposits row visibility
+        this.unsubscribers.push(
+            this.state.subscribe('btcModeEverActive', () => {
+                this.handlers.savings.updateDepositsRowVisibility();
+            })
+        );
+
         // Simulation start date changes → update PP display
         this.unsubscribers.push(
             this.state.subscribe('simulationStartDate', () => {
@@ -163,6 +177,8 @@ class DisplayManager {
         this.handlers.liquid.updateMugDisplay();
         this.handlers.savings.updateSavingsDisplay();
         this.handlers.savings.updatePPDisplay();
+        this.handlers.savings.updateContributionsDisplay();
+        this.handlers.savings.updateDepositsRowVisibility();
         this.handlers.date.updateDateDisplay();
         this.handlers.ui.updatePauseButton();
         this.handlers.ui.updateInfoPanel();
