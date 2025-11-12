@@ -4,8 +4,9 @@
  * Responsibilities:
  * - Update pause button text and styling
  * - Update info panel baseline text (dynamic parts only)
- * - Handle info panel expand/collapse interaction
+ * - Toggle info panel expansion/collapse with [+]/[-] button
  * - Update leak oval size (based on inflation rate)
+ * - Position chart panel below info panel in mobile mode
  *
  * Dependencies:
  * - config.js (CONFIG constants)
@@ -36,6 +37,8 @@ class UIDisplayHandler {
             baselineDate: null,
             infoExpandButton: null,
             infoExpandedText: null,
+            infoDisplay: null,
+            chartPanel: null,
             leakOval: null
         };
     }
@@ -61,12 +64,63 @@ class UIDisplayHandler {
             this.updatePauseButtonVisibility();
         });
 
+        // Subscribe to start state changes to reposition chart when simulation starts
+        this.state.subscribe('isStartState', (isStartState) => {
+            // When exiting start state (simulation starting), chart becomes visible
+            // Keep trying to position until layout is stable
+            if (!isStartState) {
+                this.positionChartWithRetry();
+            }
+        });
+
         // Update displays to match current state
         this.updatePauseButton();
         this.updatePauseButtonVisibility();
         this.updateInfoPanel();
         this.updateLeakOval();
         this.updateLeakOvalVisibility();
+
+        // Position chart panel after browser completes layout
+        this.positionChartPanelAfterLayout();
+
+        // Reposition chart on window resize
+        window.addEventListener('resize', () => {
+            this.positionChartPanelAfterLayout();
+        });
+    }
+
+    /**
+     * Position chart panel after browser completes layout calculations
+     * Uses requestAnimationFrame to wait for layout to be ready
+     */
+    positionChartPanelAfterLayout() {
+        // Use double requestAnimationFrame to ensure layout is complete
+        // First rAF: queued for next frame
+        // Second rAF: ensures layout has been calculated
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                this.positionChartPanelInMobile();
+            });
+        });
+    }
+
+    /**
+     * Position chart panel with retry logic
+     * Keeps trying until chart is visible and positioned correctly
+     */
+    positionChartWithRetry(attempts = 0, maxAttempts = 10) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const positioned = this.positionChartPanelInMobile();
+
+                // If positioning failed (returned early) and we haven't exceeded max attempts, retry
+                if (positioned === false && attempts < maxAttempts) {
+                    setTimeout(() => {
+                        this.positionChartWithRetry(attempts + 1, maxAttempts);
+                    }, 50);
+                }
+            });
+        });
     }
 
     /**
@@ -81,6 +135,8 @@ class UIDisplayHandler {
         this.elements.baselineDate = document.getElementById('baselineDate');
         this.elements.infoExpandButton = document.getElementById('infoExpandButton');
         this.elements.infoExpandedText = document.getElementById('infoExpandedText');
+        this.elements.infoDisplay = document.querySelector('.info-display');
+        this.elements.chartPanel = document.querySelector('.chart-panel');
 
         // Leak oval - create if it doesn't exist
         let leakOval = document.querySelector(this.config.selectors.leakOval);
@@ -94,28 +150,86 @@ class UIDisplayHandler {
      * Setup event listeners for UI interactions
      */
     setupEventListeners() {
-        // Info panel expand button click handler
+        // Info panel expand/collapse button click handler
         if (this.elements.infoExpandButton) {
             this.elements.infoExpandButton.addEventListener('click', () => {
-                this.expandInfoPanel();
+                this.toggleInfoPanel();
             });
         }
     }
 
     /**
-     * Expand the info panel to show additional explanation
-     * This is a one-way operation (no collapse)
+     * Toggle the info panel between expanded and collapsed states
      */
-    expandInfoPanel() {
-        // Hide the [+] button
-        if (this.elements.infoExpandButton) {
-            this.elements.infoExpandButton.style.display = 'none';
+    toggleInfoPanel() {
+        if (!this.elements.infoExpandButton || !this.elements.infoExpandedText) return;
+
+        // Check current state by looking at expanded text visibility
+        const isExpanded = this.elements.infoExpandedText.style.display === 'block';
+
+        if (isExpanded) {
+            // Collapse: hide text and change button to [+]
+            this.elements.infoExpandedText.style.display = 'none';
+            this.elements.infoExpandButton.textContent = '[+]';
+            this.elements.infoExpandButton.title = 'Click for more info';
+        } else {
+            // Expand: show text and change button to [-]
+            this.elements.infoExpandedText.style.display = 'block';
+            this.elements.infoExpandButton.textContent = '[-]';
+            this.elements.infoExpandButton.title = 'Click to collapse';
         }
 
-        // Show the expanded text
-        if (this.elements.infoExpandedText) {
-            this.elements.infoExpandedText.style.display = 'block';
+        // Reposition chart panel in mobile mode after expansion/collapse
+        this.positionChartPanelAfterLayout();
+    }
+
+    /**
+     * Position chart panel below info panel in mobile mode
+     * On desktop, chart stays fixed and is not affected
+     * @returns {boolean} True if positioned successfully, false if skipped
+     */
+    positionChartPanelInMobile() {
+        if (!this.elements.chartPanel || !this.elements.infoDisplay) return false;
+
+        // Only reposition in mobile mode
+        const isMobile = document.body.classList.contains('mobile-mode');
+        if (!isMobile) {
+            // Reset to CSS defaults in desktop mode
+            this.elements.chartPanel.style.top = '';
+            document.body.style.minHeight = '';
+            return true; // Successfully reset
         }
+
+        // Check if chart is actually visible (not hidden by start-state CSS)
+        const chartStyle = getComputedStyle(this.elements.chartPanel);
+        if (chartStyle.display === 'none') {
+            console.log('📊 Chart panel hidden - skipping positioning');
+            return false; // Not ready yet
+        }
+
+        // Get info panel's bottom position
+        const infoRect = this.elements.infoDisplay.getBoundingClientRect();
+        const infoBottom = infoRect.bottom + window.scrollY; // Absolute position from top of page
+
+        // Verify we got a valid position (not zero/collapsed)
+        if (infoBottom === 0 || infoRect.height === 0) {
+            console.log('📊 Info panel not laid out yet - skipping positioning');
+            return false; // Not ready yet
+        }
+
+        // Set chart panel position: info bottom + 20px margin
+        const chartTop = infoBottom + 20;
+        this.elements.chartPanel.style.top = `${chartTop}px`;
+
+        // Get chart panel height
+        const chartHeight = this.elements.chartPanel.offsetHeight;
+
+        // Update body min-height to ensure chart panel is fully visible with bottom margin
+        const requiredBodyHeight = chartTop + chartHeight + 20; // chart top + chart height + 20px bottom margin
+        document.body.style.minHeight = `${requiredBodyHeight}px`;
+
+        console.log(`📊 Chart panel repositioned to ${chartTop}px (info bottom: ${infoBottom}px + 20px margin)`);
+        return true; // Successfully positioned
     }
 
     /**

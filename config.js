@@ -161,9 +161,11 @@ const CONFIG = {
             heightRatio: 3  // Height = width / heightRatio
         },
         banker: {
-            top: 501,  // Pig bottom (200 + 300) + 1px spacing
-            width: 500,
-            height: 500
+            top: 536,  // Moved 35px down from original 501px (new image positioning)
+            width: 305,  // Updated for new banker image size
+            height: 400,  // Updated for new banker image size
+            marginLeft: 63,  // Horizontal offset from center (fine-tuned positioning)
+            marginTop: 7  // Fine-tuned vertical offset
         },
         mug: {
             top: 680,

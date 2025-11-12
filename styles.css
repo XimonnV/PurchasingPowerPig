@@ -3,6 +3,12 @@
     --window-height: 100svh; /* Use small viewport height (stable with browser chrome visible) */
 }
 
+/* Ensure html covers full viewport */
+html {
+    height: 100%;
+    min-height: 100%;
+}
+
 /* Hide scaled elements until JavaScript applies the scale */
 .scaled-element {
     opacity: 0;
@@ -16,14 +22,19 @@
 body {
     margin: 0;
     padding: 20px;
+    min-height: 100%;
+    min-width: 100%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed; /* Fix gradient to viewport, covers all scrollable area */
     font-family: 'Arial', sans-serif;
     overflow: auto; /* Always allow vertical scrolling */
 }
 
 /* In mobile mode, ensure body is tall enough for scrolling */
 body.mobile-mode {
-    min-height: calc(2 * var(--window-height)); /* Ensure there's content to scroll (equivalent to 200svh) */
+    /* Min-height is dynamically set by ui-display-handler.js based on chart panel position */
+    /* This fallback ensures minimum height if JavaScript hasn't calculated yet */
+    min-height: calc(var(--window-height) + 950px); /* Fallback - JavaScript overrides this */
 }
 
 /* Banner at top center - easily adjustable positioning */
@@ -105,14 +116,15 @@ body.start-state .chart-panel {
 
 /* Mobile mode: chart panel below other panels with full width */
 body.mobile-mode .chart-panel {
-    position: absolute; /* Positioned below panel-container */
-    /* Panel-container starts at (vh - 108px), panels are ~600px tall total, plus 20px gap */
-    top: calc(var(--window-height) + 520px); /* Approximately below all panels with gap */
+    position: absolute; /* Positioned below info panel - top set dynamically by JavaScript */
+    /* Top position is calculated by ui-display-handler.js based on info panel bottom + 20px */
+    top: calc(var(--window-height) + 520px); /* Default fallback - JavaScript overrides this */
     left: 20px; /* Left margin */
     right: auto; /* Allow width to be set explicitly */
-    width: calc(100vw - 40px); /* Full viewport width minus left/right margins */
+    width: calc(100vw - 80px); /* Full viewport width minus left/right margins */
     max-width: none; /* Remove max-width restriction */
     height: 390px; /* Maintain fixed height from desktop */
+    margin-bottom: 20px; /* Bottom margin for spacing */
 }
 
 /* Animation container - wraps all visual elements */
@@ -492,14 +504,15 @@ button.paused:active {
 .banker-container {
     position: absolute;
     left: 50%;
-    top: calc(501px * var(--scale)); /* CONFIG.positions.banker.top - Pig bottom (200 + 300) + 1px spacing */
+    top: calc(536px * var(--scale)); /* CONFIG.positions.banker.top - Moved 35px down from original 501px */
     transform: translateX(-50%);
-    margin-left: calc(75px * var(--scale)); /* Offset from pig center - scales with images */
+    margin-left: calc(63px * var(--scale)); /* Offset from pig center - Adjusted from original 85px */
+    margin-top: calc(7px * var(--scale)); /* Fine-tuned vertical position */
 }
 
 .banker-container img{
-    width: calc(500px * var(--scale)); /* CONFIG.positions.banker.width */
-    height: calc(500px * var(--scale)); /* CONFIG.positions.banker.height */
+    width: calc(305px * var(--scale)); /* CONFIG.positions.banker.width - Updated for new image */
+    height: calc(400px * var(--scale)); /* CONFIG.positions.banker.height - Updated for new image */
 }
 
 /* Banker's mug container for inflation drops */
